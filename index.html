@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SHOOTING STARS — 2D Survival Arcade</title>
+    <!-- Google Fonts for Arcade & Clean Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Press+Start+2P&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <!-- Canvas Layer -->
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Dynamic Game HUD Overlay -->
+        <div id="hud-layer" class="hidden">
+            <!-- Top Left: Stats -->
+            <div class="hud-group top-left">
+                <div class="hud-card level-card">
+                    <span class="hud-label">STAGE</span>
+                    <span id="hud-level-val" class="hud-value glowing-text">LVL 1</span>
+                    <span id="hud-level-name" class="hud-sub">CALM SKY</span>
+                </div>
+                <div class="hud-card time-card">
+                    <span class="hud-label">TIME</span>
+                    <span id="hud-time-val" class="hud-value">00:00</span>
+                </div>
+            </div>
+
+            <!-- Top Right: Score -->
+            <div class="hud-group top-right">
+                <div class="hud-card score-card">
+                    <span class="hud-label">SCORE</span>
+                    <span id="hud-score-val" class="hud-value glowing-yellow">0</span>
+                </div>
+                <div class="hud-card highscore-card">
+                    <span class="hud-label">BEST</span>
+                    <span id="hud-best-val" class="hud-value">0</span>
+                </div>
+                <button id="audio-toggle-btn" class="icon-btn" title="Toggle Sound (M)">
+                    <span id="audio-icon">🔊</span>
+                </button>
+            </div>
+
+            <!-- Level Up Announcement Banner -->
+            <div id="level-up-banner" class="banner-hidden">
+                <div class="banner-title" id="banner-title-text">LEVEL UP!</div>
+                <div class="banner-subtitle" id="banner-sub-text">METEOR SHOWER HAS BEGUN</div>
+            </div>
+        </div>
+
+        <!-- Start Menu Screen -->
+        <div id="start-screen" class="overlay-screen">
+            <div class="menu-card glass-panel">
+                <div class="logo-box">
+                    <h1 class="game-title">SHOOTING<br><span class="highlight">STARS</span></h1>
+                    <p class="tagline">How long can you survive the collapsing sky?</p>
+                </div>
+
+                <div class="controls-guide">
+                    <h3>CONTROLS</h3>
+                    <div class="keys-grid">
+                        <div class="key-item">
+                            <span class="key-cap">▲</span>
+                            <span class="key-desc">JUMP</span>
+                        </div>
+                        <div class="key-item">
+                            <span class="key-cap">▼</span>
+                            <span class="key-desc">CROUCH</span>
+                        </div>
+                        <div class="key-item">
+                            <span class="key-cap">◄</span>
+                            <span class="key-desc">LEFT</span>
+                        </div>
+                        <div class="key-item">
+                            <span class="key-cap">►</span>
+                            <span class="key-desc">RIGHT</span>
+                        </div>
+                    </div>
+                    <p class="control-note">Avoid falling meteors &amp; jump over breaking ground gaps!</p>
+                </div>
+
+                <div class="actions">
+                    <button id="start-btn" class="primary-btn pulse-glow">
+                        <span class="btn-text">START SURVIVAL</span>
+                        <span class="btn-shine"></span>
+                    </button>
+                </div>
+
+                <div class="best-score-display">
+                    PERSONAL BEST: <span id="menu-best-score">0</span> PTS
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameover-screen" class="overlay-screen hidden">
+            <div class="menu-card glass-panel gameover-panel">
+                <div class="danger-header">
+                    <h2 class="gameover-title">GAME OVER</h2>
+                    <p id="death-reason" class="death-reason">Smashed by a falling meteor!</p>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="stat-lbl">FINAL SCORE</span>
+                        <span id="go-score" class="stat-val highlight-gold">0</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-lbl">SURVIVAL TIME</span>
+                        <span id="go-time" class="stat-val">0s</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-lbl">STAGE REACHED</span>
+                        <span id="go-level" class="stat-val">LVL 1</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-lbl">BEST RECORD</span>
+                        <span id="go-best" class="stat-val">0</span>
+                    </div>
+                </div>
+
+                <div id="new-record-badge" class="new-record-badge hidden">
+                    ★ NEW HIGH SCORE! ★
+                </div>
+
+                <div class="actions button-row">
+                    <button id="restart-btn" class="primary-btn glowing-btn">
+                        <span>TRY AGAIN</span>
+                    </button>
+                    <button id="main-menu-btn" class="secondary-btn">
+                        <span>MAIN MENU</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application JavaScript Modules -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
