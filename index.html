@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SHOOTING STARS — 2D Survival Arcade</title>
+    <meta name="description" content="Shooting Stars: a fast-paced 2D survival arcade game. Dodge meteors, jump on moving platforms and collect glowing coins to restore energy!">
     <!-- Google Fonts for Arcade & Clean Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,7 +31,17 @@
                 </div>
             </div>
 
-            <!-- Top Right: Score -->
+            <!-- Top Center: Coin Counter -->
+            <div class="hud-group top-center">
+                <div class="hud-card coin-card">
+                    <span class="hud-label">COINS</span>
+                    <span id="hud-coin-val" class="hud-value coin-value">
+                        <span class="coin-icon">🪙</span><span id="hud-coin-num">0</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Top Right: Score + Audio -->
             <div class="hud-group top-right">
                 <div class="hud-card score-card">
                     <span class="hud-label">SCORE</span>
@@ -45,6 +56,23 @@
                 </button>
             </div>
 
+            <!-- ── FIRECRACKER ENERGY BAR (bottom-center) ── -->
+            <div id="energy-hud" class="energy-hud-wrap">
+                <div class="energy-hud-row">
+                    <span class="energy-label">⚡ ENERGY</span>
+                    <span id="energy-pct" class="energy-pct-text">100%</span>
+                </div>
+                <div id="energy-bar-wrap" class="energy-bar-outer">
+                    <div id="energy-fill" class="energy-bar-fill"></div>
+                    <div id="energy-tip"  class="energy-bar-tip"></div>
+                </div>
+                <!-- Shield Status beneath bar -->
+                <div class="shield-status-row">
+                    <span id="shield-count"  class="shield-count-text"></span>
+                    <span id="shield-active" class="shield-active-text"></span>
+                </div>
+            </div>
+
             <!-- Level Up Announcement Banner -->
             <div id="level-up-banner" class="banner-hidden">
                 <div class="banner-title" id="banner-title-text">LEVEL UP!</div>
@@ -57,7 +85,7 @@
             <div class="menu-card glass-panel">
                 <div class="logo-box">
                     <h1 class="game-title">SHOOTING<br><span class="highlight">STARS</span></h1>
-                    <p class="tagline">How long can you survive the collapsing sky?</p>
+                    <p class="tagline">Dodge the sky · jump platforms · collect ⭐ coins to fuel your run!</p>
                 </div>
 
                 <div class="controls-guide">
@@ -80,7 +108,11 @@
                             <span class="key-desc">RIGHT</span>
                         </div>
                     </div>
-                    <p class="control-note">Avoid falling meteors &amp; jump over breaking ground gaps!</p>
+                    <p class="control-note">
+                        Collect <span style="color:#FFD700">★ coins</span> to restore
+                        <span style="color:#00f0ff">⚡ energy</span> — every 10 coins earns a
+                        <span style="color:#a3e635">🛡 shield</span>!
+                    </p>
                 </div>
 
                 <div class="actions">
@@ -121,6 +153,20 @@
                         <span class="stat-lbl">BEST RECORD</span>
                         <span id="go-best" class="stat-val">0</span>
                     </div>
+                    <div class="stat-box coins-stat">
+                        <span class="stat-lbl">COINS COLLECTED</span>
+                        <span id="go-coins" class="stat-val highlight-gold">0 🪙</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-lbl">SHIELDS EARNED</span>
+                        <span id="go-shields" class="stat-val">0 🛡</span>
+                    </div>
+                </div>
+
+                <!-- Coin Analytics Chart -->
+                <div class="analytics-section">
+                    <div class="analytics-title">⭐ COINS PER STAGE</div>
+                    <canvas id="analytics-chart" class="analytics-chart"></canvas>
                 </div>
 
                 <div id="new-record-badge" class="new-record-badge hidden">

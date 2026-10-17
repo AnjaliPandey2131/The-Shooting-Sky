@@ -2,6 +2,8 @@
    SHOOTING STARS - Main Game Engine
    Loop orchestration, input handling, collision resolution,
    responsive scaling, and state machine management.
+   Integrates: energy system, shield protection, floating platforms,
+   coin system with analytics, funny sounds.
    ------------------------------------------------------------- */
 
 import { CONFIG } from './config.js';
@@ -9,8 +11,12 @@ import { sound } from './audio.js';
 import { ParticleSystem } from './particles.js';
 import { Player } from './player.js';
 import { PlatformManager } from './platform.js';
+import { FloatingPlatformManager } from './floatingPlatforms.js';
 import { DifficultyManager } from './difficulty.js';
 import { UIManager } from './ui.js';
+import { CoinManager } from './coins.js';
+import { EnergyManager } from './energy.js';
+import { RageBaitCoinManager } from './rageBaitCoin.js';
 
 export const GAME_STATE = {
     MENU: 0,
@@ -27,11 +33,15 @@ export class GameEngine {
         this.state = GAME_STATE.MENU;
 
         // Subsystem instances
-        this.particles = new ParticleSystem();
-        this.player = new Player();
-        this.platform = new PlatformManager();
+        this.particles  = new ParticleSystem();
+        this.player     = new Player();
+        this.platform   = new PlatformManager();
+        this.floatingPlatforms = new FloatingPlatformManager();
         this.difficulty = new DifficultyManager();
-        this.ui = new UIManager(sound);
+        this.ui         = new UIManager(sound);
+        this.coins      = new CoinManager();
+        this.energy     = new EnergyManager();
+        this.rageBait   = new RageBaitCoinManager();
 
         // Input State
         this.keys = {
@@ -52,31 +62,30 @@ export class GameEngine {
     }
 
     initCanvasScale() {
-        // Internal fixed resolution for rendering crisp physics & graphics
-        this.canvas.width = CONFIG.CANVAS_WIDTH;
+        this.canvas.width  = CONFIG.CANVAS_WIDTH;
         this.canvas.height = CONFIG.CANVAS_HEIGHT;
 
-        const resize = () => {
-            const containerWidth = this.container.clientWidth;
-            const containerHeight = this.container.clientHeight;
-            // Canvas styled to fill container via CSS width/height: 100%
-        };
+        const resize = () => {};
         window.addEventListener('resize', resize);
         resize();
     }
 
     bindEvents() {
-        // Keyboard Controls (Arrow Keys strictly)
         window.addEventListener('keydown', (e) => {
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
-                e.preventDefault(); // Prevent browser scrolling
+                e.preventDefault();
+            }
+
+            if (e.code === 'KeyM') {
+                const isMuted = sound.toggleMute();
+                document.getElementById('audio-icon').textContent = isMuted ? '🔇' : '🔊';
             }
 
             if (this.state === GAME_STATE.PLAYING) {
-                if (e.code === 'ArrowLeft') this.keys.left = true;
+                if (e.code === 'ArrowLeft')  this.keys.left  = true;
                 if (e.code === 'ArrowRight') this.keys.right = true;
-                if (e.code === 'ArrowUp') this.keys.jump = true;
-                if (e.code === 'ArrowDown') this.keys.down = true;
+                if (e.code === 'ArrowUp')    this.keys.jump  = true;
+                if (e.code === 'ArrowDown')  this.keys.down  = true;
             }
         });
 
@@ -84,14 +93,12 @@ export class GameEngine {
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
                 e.preventDefault();
             }
-
-            if (e.code === 'ArrowLeft') this.keys.left = false;
+            if (e.code === 'ArrowLeft')  this.keys.left  = false;
             if (e.code === 'ArrowRight') this.keys.right = false;
-            if (e.code === 'ArrowUp') this.keys.jump = false;
-            if (e.code === 'ArrowDown') this.keys.down = false;
+            if (e.code === 'ArrowUp')    this.keys.jump  = false;
+            if (e.code === 'ArrowDown')  this.keys.down  = false;
         });
 
-        // UI Buttons
         document.getElementById('start-btn').addEventListener('click', () => {
             sound.ensureAudioContext();
             this.startGame();
@@ -109,16 +116,20 @@ export class GameEngine {
 
     showMenu() {
         this.state = GAME_STATE.MENU;
+        this.rageBait.reset(sound);
         this.ui.showStartScreen();
     }
 
     startGame() {
-        // Full State Reset
         this.score = 0;
         this.particles.reset();
         this.player.reset();
         this.platform.reset();
+        this.floatingPlatforms.reset();
         this.difficulty.reset();
+        this.coins.reset();
+        this.rageBait.reset(sound);
+        this.energy.reset();
         this.keys = { left: false, right: false, jump: false, down: false };
 
         this.state = GAME_STATE.PLAYING;
@@ -129,11 +140,12 @@ export class GameEngine {
     gameOver(reason) {
         if (this.state === GAME_STATE.GAMEOVER) return;
         this.state = GAME_STATE.GAMEOVER;
+        this.rageBait.reset(sound);
         this.deathCause = reason;
 
+        sound.playWomp();
         sound.playImpact();
 
-        // Create player hit explosion particles
         this.particles.createExplosion(
             this.player.x + this.player.width / 2,
             this.player.y + this.player.height / 2,
@@ -148,7 +160,11 @@ export class GameEngine {
                 this.difficulty.survivalTime,
                 this.difficulty.currentStage.NAME,
                 this.difficulty.currentStage.LEVEL,
-                this.deathCause
+                this.deathCause,
+                this.coins.totalCollected,
+                this.energy.intervalCoins,
+                this.energy.shieldCharges,
+                this.energy.milestonesGranted.size  // shields used = milestones granted
             );
         }, 400);
     }
@@ -156,7 +172,7 @@ export class GameEngine {
     startLoop() {
         const loop = (timestamp) => {
             if (!this.lastFrameTime) this.lastFrameTime = timestamp;
-            const dt = Math.min((timestamp - this.lastFrameTime) / 1000, 0.1); // Cap delta time
+            const dt = Math.min((timestamp - this.lastFrameTime) / 1000, 0.1);
             this.lastFrameTime = timestamp;
 
             this.update(dt);
@@ -169,8 +185,11 @@ export class GameEngine {
 
     update(dt) {
         if (this.state === GAME_STATE.PLAYING) {
-            // 1. Update Player
-            this.player.update(this.keys, this.platform, sound);
+            // 1. Update Energy (drain + smooth physics multipliers)
+            this.energy.update(dt);
+
+            // 2. Update Player (now receives energy manager for speed/jump scaling)
+            this.player.update(this.keys, this.platform, this.floatingPlatforms, sound, this.energy);
 
             // Check if player fell into a gap past the ground
             if (this.player.y > CONFIG.GROUND_Y + 100) {
@@ -178,69 +197,160 @@ export class GameEngine {
                 return;
             }
 
-            // 2. Update Difficulty & Hazards
+            // 3. Update Floating Platforms
+            this.floatingPlatforms.update(
+                dt,
+                this.difficulty.survivalTime,
+                this.particles,
+                sound,
+                this.coins
+            );
+
+            // 4. Update Difficulty & Hazards
             this.difficulty.update(dt, this.particles, this.platform, sound);
 
             if (this.difficulty.levelJustChanged) {
                 this.ui.triggerLevelBanner(this.difficulty.currentStage);
             }
 
-            // 3. Update Score based on survival time + level multiplier
+            // 5. Update Score
             const scoreMultiplier = 1 + (this.difficulty.currentStageIndex * 0.5);
             this.score += dt * 100 * scoreMultiplier;
 
-            // 4. Collision Detection (Player vs Hazards)
-            const playerHitbox = this.player.getHitbox();
+            // 6. Update Coins (level-based scheduling + animation)
+            const intervalIndex = Math.min(4, Math.floor(this.difficulty.survivalTime / 30));
+            this.coins.update(dt, this.difficulty.survivalTime, this.platform, this.floatingPlatforms);
 
+            // 7. Coin Collection Detection
+            const playerHitbox = this.player.getHitbox();
+            const coinResult = this.coins.checkPlayerCollection(
+                playerHitbox,
+                sound,
+                this.energy,
+                intervalIndex
+            );
+            if (coinResult.score > 0) {
+                this.score += coinResult.score;
+            }
+
+            // 8. Update and collect the special coin through normal coin rewards.
+            this.rageBait.update(
+                dt,
+                this.difficulty.survivalTime,
+                this.difficulty.currentStageIndex,
+                this.player,
+                this.platform,
+                this.floatingPlatforms,
+                this.energy,
+                sound,
+                this.particles
+            );
+            const rageBaitResult = this.rageBait.checkPlayerCollection(
+                playerHitbox,
+                this.coins,
+                sound,
+                this.energy,
+                intervalIndex,
+                this.particles
+            );
+            this.score += rageBaitResult.score;
+
+            // 9. Hazard Collision Detection (with shield protection)
             for (let hazard of this.difficulty.hazards) {
                 const hazardHitbox = hazard.getHitbox();
 
                 if (this.checkCollision(playerHitbox, hazardHitbox)) {
+                    // Check if shield can block this hit
+                    if (this.energy.shieldActive) {
+                        // Shield absorbs the hit — do nothing (still invulnerable)
+                        continue;
+                    }
+
+                    // Check proximity for auto-activation
+                    const closeness = this._hazardProximity(playerHitbox, hazardHitbox);
+                    if (closeness <= CONFIG.SHIELD.TRIGGER_MARGIN && !this.energy.shieldActive) {
+                        this.energy.tryActivateShield();
+                    }
+
+                    // If shield just activated, this hit is blocked
+                    if (this.energy.shieldActive) {
+                        continue;
+                    }
+
+                    // No shield — die
                     let name = "a falling hazard";
                     if (hazard.constructor.name === 'ShootingStar') name = "a Shooting Star";
-                    if (hazard.constructor.name === 'Hailstone') name = "a Hailstone";
-                    if (hazard.constructor.name === 'Asteroid') name = "a heavy Asteroid";
-                    if (hazard.constructor.name === 'Fireball') name = "a burning Fireball";
+                    if (hazard.constructor.name === 'Hailstone')    name = "a Hailstone";
+                    if (hazard.constructor.name === 'Asteroid')     name = "a heavy Asteroid";
+                    if (hazard.constructor.name === 'Fireball')     name = "a burning Fireball";
 
                     this.gameOver(`Crushed by ${name}!`);
                     return;
+                } else {
+                    // Pre-emptive shield trigger: if hazard is very close, activate before collision
+                    const closeness = this._hazardProximity(playerHitbox, hazardHitbox);
+                    if (closeness <= CONFIG.SHIELD.TRIGGER_MARGIN && !this.energy.shieldActive && this.energy.shieldCharges > 0) {
+                        this.energy.tryActivateShield();
+                    }
+
+                    this.player.checkNearMiss(hazardHitbox, sound);
                 }
             }
 
-            // 5. Update HUD
-            this.ui.updateHUD(this.score, this.difficulty.survivalTime, this.difficulty.currentStage);
+            // 9. Update HUD
+            this.ui.updateHUD(
+                this.score,
+                this.difficulty.survivalTime,
+                this.difficulty.currentStage,
+                this.coins.totalCollected,
+                this.energy,
+                this.energy.shieldCharges,
+                this.energy.shieldActive,
+                this.energy.shieldTimer
+            );
+
         } else if (this.state === GAME_STATE.MENU) {
-            // Menu State preview background updates
             this.difficulty.update(dt * 0.5, this.particles, this.platform, sound);
         }
     }
 
+    /** Returns shortest distance from hazard centre to player hitbox edge */
+    _hazardProximity(playerHB, hazardHB) {
+        const px = playerHB.x + playerHB.width  / 2;
+        const py = playerHB.y + playerHB.height / 2;
+        const hx = hazardHB.x + hazardHB.width  / 2;
+        const hy = hazardHB.y + hazardHB.height / 2;
+        return Math.hypot(px - hx, py - hy);
+    }
+
     checkCollision(rect1, rect2) {
         return (
-            rect1.x < rect2.x + rect2.width &&
-            rect1.x + rect1.width > rect2.x &&
+            rect1.x < rect2.x + rect2.width  &&
+            rect1.x + rect1.width  > rect2.x &&
             rect1.y < rect2.y + rect2.height &&
             rect1.y + rect1.height > rect2.y
         );
     }
 
     draw() {
-        // Clear screen with deep space background fill
         this.ctx.fillStyle = '#0a0c16';
         this.ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
 
-        // 1. Draw Starfield & Dynamic Particles
         this.particles.updateAndDraw(this.ctx, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
-
-        // 2. Draw Platform & Crumbling Gaps
         this.platform.draw(this.ctx);
+        this.floatingPlatforms.draw(this.ctx);
 
-        // 3. Draw Hazards & Warnings
+        if (this.state === GAME_STATE.PLAYING) {
+            this.coins.draw(this.ctx);
+            this.rageBait.draw(this.ctx, this.player);
+        }
+
         this.difficulty.draw(this.ctx);
 
-        // 4. Draw Player (if playing or menu preview)
         if (this.state === GAME_STATE.PLAYING || this.state === GAME_STATE.MENU) {
-            this.player.draw(this.ctx);
+            // Pass energy manager and shield state to player draw
+            const shieldActive = (this.state === GAME_STATE.PLAYING) && this.energy.shieldActive;
+            this.player.draw(this.ctx, this.energy, shieldActive);
         }
     }
 }

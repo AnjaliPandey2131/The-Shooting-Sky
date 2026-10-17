@@ -14,10 +14,14 @@ desktop.ini
 
 # Node & Package Managers (if added in the future)
 node_modules/
-package-lock.json
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
 
 # Temp & Logs
 *.log

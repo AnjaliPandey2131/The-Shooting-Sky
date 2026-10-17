@@ -75,9 +75,11 @@ canvas {
     z-index: 10;
     pointer-events: none;
     padding: 20px 24px;
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    grid-template-rows: auto 1fr;
     align-items: flex-start;
+    column-gap: 0;
 }
 
 .hud-group {
@@ -85,6 +87,18 @@ canvas {
     gap: 16px;
     align-items: center;
     pointer-events: auto;
+}
+
+.hud-group.top-left {
+    justify-content: flex-start;
+}
+
+.hud-group.top-center {
+    justify-content: center;
+}
+
+.hud-group.top-right {
+    justify-content: flex-end;
 }
 
 .hud-card {
@@ -131,6 +145,31 @@ canvas {
     text-shadow: 0 0 10px rgba(255, 209, 102, 0.5);
 }
 
+/* Coin Counter Card */
+.coin-card {
+    border-color: rgba(255, 215, 0, 0.4) !important;
+    box-shadow: 0 4px 16px rgba(255, 180, 0, 0.2);
+}
+
+.coin-value {
+    color: #FFD700 !important;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.coin-icon {
+    font-size: 1rem;
+    animation: coinSpin 2s ease-in-out infinite alternate;
+}
+
+@keyframes coinSpin {
+    0%   { transform: rotateY(0deg) scale(1); }
+    50%  { transform: rotateY(30deg) scale(1.1); }
+    100% { transform: rotateY(0deg) scale(1); }
+}
+
 .icon-btn {
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
@@ -164,6 +203,8 @@ canvas {
     z-index: 15;
     opacity: 0;
     transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    grid-column: 1 / -1; /* Span all grid columns if in flow */
+    width: max-content;
 }
 
 #level-up-banner.banner-visible {
@@ -422,6 +463,12 @@ canvas {
     gap: 12px;
 }
 
+.coins-stat {
+    grid-column: span 2;
+    border-color: rgba(255, 215, 0, 0.3);
+    background: rgba(255, 180, 0, 0.05);
+}
+
 .stat-box {
     background: rgba(2, 6, 23, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -466,5 +513,192 @@ canvas {
 
 @keyframes bounceBadge {
     from { transform: scale(0.96); }
-    to { transform: scale(1.04); }
+    to   { transform: scale(1.04); }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   FIRECRACKER ENERGY BAR
+───────────────────────────────────────────────────────────── */
+
+.energy-hud-wrap {
+    position: absolute;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    pointer-events: none;
+    z-index: 12;
+}
+
+.energy-hud-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 2px;
+}
+
+.energy-label {
+    font-family: var(--font-heading);
+    font-size: 0.6rem;
+    letter-spacing: 2px;
+    color: #94a3b8;
+}
+
+.energy-pct-text {
+    font-family: var(--font-heading);
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #00f0ff;
+    transition: color 0.4s ease;
+}
+
+/* Outer track */
+.energy-bar-outer {
+    position: relative;
+    width: 100%;
+    height: 10px;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    overflow: visible;
+    box-shadow: inset 0 0 6px rgba(0,0,0,0.5);
+    transition: box-shadow 0.3s ease;
+}
+
+/* Inner fill — width driven by JS */
+.energy-bar-fill {
+    height: 100%;
+    border-radius: 5px;
+    background: linear-gradient(90deg, #22d3ee, #00f0ff);
+    transition: width 0.15s ease-out, background 0.4s ease, box-shadow 0.4s ease;
+    position: relative;
+}
+
+/* Firecracker "spark" tip */
+.energy-bar-tip {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 16px;
+    background: #00f0ff;
+    border-radius: 3px;
+    transition: left 0.15s ease-out, background 0.4s ease, box-shadow 0.4s ease;
+    z-index: 2;
+}
+
+.energy-bar-tip::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    background: #ffffff;
+    border-radius: 50%;
+    box-shadow: 0 0 6px #ffffff, 0 0 12px currentColor;
+    animation: sparkFlicker 0.18s steps(2) infinite;
+}
+
+@keyframes sparkFlicker {
+    0%   { opacity: 1; transform: translateX(-50%) scale(1); }
+    50%  { opacity: 0.5; transform: translateX(-50%) scale(0.6); }
+    100% { opacity: 1; transform: translateX(-50%) scale(1.1); }
+}
+
+/* Low-energy warning pulse */
+.energy-pulse-low .energy-bar-outer {
+    animation: lowEnergyPulse 0.7s ease-in-out infinite alternate;
+}
+
+@keyframes lowEnergyPulse {
+    from { box-shadow: inset 0 0 6px rgba(0,0,0,0.5), 0 0 0px rgba(244, 63, 94, 0); }
+    to   { box-shadow: inset 0 0 6px rgba(0,0,0,0.5), 0 0 12px rgba(244, 63, 94, 0.7); }
+}
+
+/* ─── Shield Status ───────────────────────────────────────── */
+
+.shield-status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 18px;
+}
+
+.shield-count-text {
+    font-family: var(--font-heading);
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #a3e635;
+    letter-spacing: 1px;
+    transition: opacity 0.3s ease;
+}
+
+.shield-active-text {
+    font-family: var(--font-heading);
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #00f0ff;
+    letter-spacing: 1px;
+}
+
+.shield-active-glow {
+    animation: shieldGlowPulse 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes shieldGlowPulse {
+    from { text-shadow: 0 0 4px #00f0ff; }
+    to   { text-shadow: 0 0 16px #00f0ff, 0 0 32px rgba(0, 240, 255, 0.5); }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   COIN ANALYTICS CHART (game-over screen)
+───────────────────────────────────────────────────────────── */
+
+.analytics-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+    width: 100%;
+}
+
+.analytics-title {
+    font-family: var(--font-heading);
+    font-size: 0.65rem;
+    color: var(--primary-cyan);
+    letter-spacing: 2px;
+    text-align: center;
+}
+
+.analytics-chart {
+    width: 100%;
+    height: 100px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.07);
+    background: rgba(0,0,0,0.3);
+    display: block;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   GAMEOVER PANEL — wider to fit analytics
+───────────────────────────────────────────────────────────── */
+
+.gameover-panel {
+    max-width: 560px !important;
+    padding: 32px 40px !important;
+    gap: 16px !important;
+}
+
+.stats-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 10px !important;
+}
+
+.coins-stat {
+    grid-column: span 3 !important;
 }
