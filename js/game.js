@@ -17,11 +17,13 @@ import { UIManager } from './ui.js';
 import { CoinManager } from './coins.js';
 import { EnergyManager } from './energy.js';
 import { RageBaitCoinManager } from './rageBaitCoin.js';
+import { SpaceBackground } from './spaceBackground.js';
 
 export const GAME_STATE = {
     MENU: 0,
-    PLAYING: 1,
-    GAMEOVER: 2
+    INTRO: 1,
+    PLAYING: 2,
+    GAMEOVER: 3
 };
 
 export class GameEngine {
@@ -33,16 +35,22 @@ export class GameEngine {
         this.state = GAME_STATE.MENU;
 
         // Subsystem instances
-        this.particles  = new ParticleSystem();
-        this.player     = new Player();
-        this.platform   = new PlatformManager();
+        this.particles = new ParticleSystem();
+        this.player = new Player();
+        this.platform = new PlatformManager();
         this.floatingPlatforms = new FloatingPlatformManager();
         this.difficulty = new DifficultyManager();
-        this.ui         = new UIManager(sound);
-        this.coins      = new CoinManager();
-        this.energy     = new EnergyManager();
-        this.rageBait   = new RageBaitCoinManager();
+        this.ui = new UIManager(sound);
+        this.coins = new CoinManager();
+        this.energy = new EnergyManager();
+        this.rageBait = new RageBaitCoinManager();
+        this.spaceBackground = new SpaceBackground(CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
 
+        this.cameraOffset = 0; // used for background parallax
+        this.introTimer = 0;
+        this.introDuration = 4; // seconds
+        this.rocketY = CONFIG.CANVAS_HEIGHT; // start off-screen
+        this.rocketSpeed = 250; // pixels per second
         // Input State
         this.keys = {
             left: false,
@@ -132,9 +140,12 @@ export class GameEngine {
         this.energy.reset();
         this.keys = { left: false, right: false, jump: false, down: false };
 
-        this.state = GAME_STATE.PLAYING;
-        this.ui.showHUD();
-        this.lastFrameTime = performance.now();
+        // Begin cinematic intro before gameplay
+        this.state = GAME_STATE.INTRO;
+        this.introTimer = 0;
+        this.rocketY = CONFIG.CANVAS_HEIGHT; // start below canvas
+        this.cameraOffset = 0;
+        this.ui.showStartScreen(); // keep menu visible until intro ends
     }
 
     gameOver(reason) {
@@ -184,6 +195,26 @@ export class GameEngine {
     }
 
     update(dt) {
+        this.spaceBackground.update(dt);
+
+        // Intro cinematic sequence
+        if (this.state === GAME_STATE.INTRO) {
+            this.introTimer += dt;
+            this.rocketY -= this.rocketSpeed * dt;
+            // Simple camera follow the rocket while it ascends
+            this.cameraOffset = Math.max(0, this.rocketY - CONFIG.CANVAS_HEIGHT / 2);
+            if (this.introTimer >= this.introDuration) {
+                // Transition to PLAYING state
+                this.state = GAME_STATE.PLAYING;
+                this.ui.showHUD();
+                this.cameraOffset = 0;
+                // Ensure background region matches the first stage
+                const regionMap = ['earth','mars','jupiter','nebula','blackhole'];
+                this.spaceBackground.setRegion(regionMap[this.difficulty.currentStageIndex] || 'earth');
+            }
+            return; // Skip gameplay updates during intro
+        }
+
         if (this.state === GAME_STATE.PLAYING) {
             // 1. Update Energy (drain + smooth physics multipliers)
             this.energy.update(dt);
@@ -211,6 +242,9 @@ export class GameEngine {
 
             if (this.difficulty.levelJustChanged) {
                 this.ui.triggerLevelBanner(this.difficulty.currentStage);
+                // Update background region to match new stage
+                const regionMap = ['earth','mars','jupiter','nebula','blackhole'];
+                this.spaceBackground.setRegion(regionMap[this.difficulty.currentStageIndex] || 'earth');
             }
 
             // 5. Update Score
@@ -333,8 +367,33 @@ export class GameEngine {
     }
 
     draw() {
-        this.ctx.fillStyle = '#0a0c16';
-        this.ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
+        // Draw background with camera offset for parallax effect
+        this.spaceBackground.draw(this.ctx, this.cameraOffset);
+
+        // Render intro rocket if in INTRO state
+        if (this.state === GAME_STATE.INTRO) {
+            const ctx = this.ctx;
+            ctx.save();
+            const rocketX = CONFIG.CANVAS_WIDTH / 2;
+            const rocketY = this.rocketY;
+            // Rocket body
+            ctx.fillStyle = '#ffdd33';
+            ctx.beginPath();
+            ctx.moveTo(rocketX - 12, rocketY);
+            ctx.lineTo(rocketX + 12, rocketY);
+            ctx.lineTo(rocketX, rocketY - 30);
+            ctx.closePath();
+            ctx.fill();
+            // Exhaust plume
+            ctx.globalAlpha = 0.6;
+            const plumeHeight = 20 + Math.random() * 8;
+            const plumeGrad = ctx.createLinearGradient(rocketX, rocketY, rocketX, rocketY + plumeHeight);
+            plumeGrad.addColorStop(0, 'rgba(255,140,0,0.8)');
+            plumeGrad.addColorStop(1, 'rgba(255,0,0,0)');
+            ctx.fillStyle = plumeGrad;
+            ctx.fillRect(rocketX - 8, rocketY, 16, plumeHeight);
+            ctx.restore();
+        }
 
         this.particles.updateAndDraw(this.ctx, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
         this.platform.draw(this.ctx);
@@ -348,7 +407,6 @@ export class GameEngine {
         this.difficulty.draw(this.ctx);
 
         if (this.state === GAME_STATE.PLAYING || this.state === GAME_STATE.MENU) {
-            // Pass energy manager and shield state to player draw
             const shieldActive = (this.state === GAME_STATE.PLAYING) && this.energy.shieldActive;
             this.player.draw(this.ctx, this.energy, shieldActive);
         }

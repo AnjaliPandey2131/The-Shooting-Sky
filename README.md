@@ -79,6 +79,7 @@ Stages advance with survival time. Each stage lasts 30 seconds except stage 5, w
     ├── energy.js             # Energy, shield milestones, and analytics
     ├── rageBaitCoin.js       # Timed special-coin encounter
     ├── difficulty.js         # Stage progression and hazard scheduling
+    ├── spaceBackground.js   # Procedural animated parallax scenery
     ├── particles.js          # Particle and visual effects
     ├── audio.js              # Procedural sound and optional speech
     └── ui.js                 # HUD, menus, scores, and analytics chart
@@ -111,6 +112,8 @@ Stay alive by moving, jumping, and crouching to avoid hazards. Use floating plat
 ## Screenshots and demo
 
 No screenshots, gameplay GIFs, or hosted demo are included in this repository yet. Gameplay images can be added under an `assets/` directory and linked here once committed.
+
+The game canvas has a procedural animated space background with slowly drifting nebulae and planets, layered star and particle movement, and occasional subtle streaks. It uses the existing canvas animation loop and does not affect gameplay collisions or input.
 
 ## Testing and known limitations
 

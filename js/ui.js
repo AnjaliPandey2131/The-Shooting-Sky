@@ -17,7 +17,7 @@ export class UIManager {
         this.startScreen     = document.getElementById('start-screen');
         this.gameoverScreen  = document.getElementById('gameover-screen');
         this.levelUpBanner   = document.getElementById('level-up-banner');
-
+        this.aboutScreen = document.getElementById('about-screen');
         // HUD Text Elements
         this.hudLevelVal  = document.getElementById('hud-level-val');
         this.hudLevelName = document.getElementById('hud-level-name');
@@ -94,6 +94,25 @@ export class UIManager {
     }
 
     initEventListeners() {
+        // Existing listeners
+        if (this.audioToggleBtn) {
+            this.audioToggleBtn.addEventListener('click', () => {
+                const isMuted = this.sound.toggleMute();
+                this.audioIcon.textContent = isMuted ? '🔇' : '🔊';
+            });
+        }
+        // Start button handled elsewhere in game.js
+        // About button
+        const aboutBtn = document.getElementById('about-btn');
+        if (aboutBtn) {
+            aboutBtn.addEventListener('click', () => this.showAboutScreen());
+        }
+        // About close button
+        const aboutCloseBtn = document.getElementById('about-close-btn');
+        if (aboutCloseBtn) {
+            aboutCloseBtn.addEventListener('click', () => this.hideAboutScreen());
+        }
+
         if (this.audioToggleBtn) {
             this.audioToggleBtn.addEventListener('click', () => {
                 const isMuted = this.sound.toggleMute();
@@ -106,6 +125,7 @@ export class UIManager {
         this.startScreen.classList.remove('hidden');
         this.gameoverScreen.classList.add('hidden');
         this.hudLayer.classList.add('hidden');
+        if (this.aboutScreen) this.aboutScreen.classList.add('hidden');
         this.updateBestScoreDisplays();
     }
 
@@ -113,6 +133,22 @@ export class UIManager {
         this.startScreen.classList.add('hidden');
         this.gameoverScreen.classList.add('hidden');
         this.hudLayer.classList.remove('hidden');
+    }
+
+    showAboutScreen() {
+        if (this.aboutScreen) {
+            this.aboutScreen.classList.remove('hidden');
+            this.startScreen.classList.add('hidden');
+            this.hudLayer.classList.add('hidden');
+            this.gameoverScreen.classList.add('hidden');
+        }
+    }
+
+    hideAboutScreen() {
+        if (this.aboutScreen) {
+            this.aboutScreen.classList.add('hidden');
+            this.startScreen.classList.remove('hidden');
+        }
     }
 
     /**

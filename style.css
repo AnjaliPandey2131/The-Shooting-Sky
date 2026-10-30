@@ -4,6 +4,18 @@
    ------------------------------------------------------------- */
 
 :root {
+    /* Region colour palettes */
+    --region-earth-start: #0b2746; /* deep blue */
+    --region-earth-end: #001d3d;
+    --region-mars-start: #3b1e1e; /* rust */
+    --region-mars-end: #2c0f0f;
+    --region-jupiter-start: #2a2a4f; /* gas giant dark */
+    --region-jupiter-end: #1b1b2b;
+    --region-nebula-start: #331c3c; /* violet */
+    --region-nebula-end: #1a0a28;
+    --region-blackhole-start: #0a0a0a;
+    --region-blackhole-end: #000000;
+
     --bg-dark: #0a0c16;
     --primary-cyan: #00f0ff;
     --primary-purple: #9d4edd;
@@ -268,6 +280,84 @@ canvas {
     gap: 24px;
     animation: panelPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
+
+/* Cosmic Field Guide specific styles */
+.guide-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+.guide-title {
+    font-family: var(--font-heading);
+    font-size: 2.6rem;
+    color: #ffffff;
+    text-shadow: 0 0 12px var(--primary-cyan);
+    margin: 0;
+}
+.guide-subtitle {
+    font-family: var(--font-heading);
+    font-size: 1.4rem;
+    color: var(--primary-cyan);
+    margin: 0;
+}
+.hero-copy {
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    color: #cbd5e1;
+    text-align: center;
+    max-width: 480px;
+}
+.hero-image {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 0 20px rgba(0,240,255,0.4);
+}
+.guide-content {
+    width: 100%;
+    max-height: 60vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding-right: 8px;
+}
+.guide-section {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.section-title {
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    color: var(--primary-cyan);
+    margin: 0;
+}
+.section-content {
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    color: #e2e8f0;
+    line-height: 1.4;
+}
+.section-image {
+    width: 100%;
+    max-height: 180px;
+    object-fit: contain;
+    margin-top: 6px;
+    border-radius: 6px;
+    box-shadow: 0 0 10px rgba(0,240,255,0.3);
+}
+.actions.button-row {
+    justify-content: center;
+}
+
 
 @keyframes panelPop {
     from {
