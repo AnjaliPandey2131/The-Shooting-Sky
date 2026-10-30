@@ -6,23 +6,6 @@
 export class ParticleSystem {
     constructor() {
         this.particles = [];
-        this.stars = [];
-        this.initStarfield();
-    }
-
-    initStarfield() {
-        this.stars = [];
-        const numStars = 100;
-        for (let i = 0; i < numStars; i++) {
-            this.stars.push({
-                x: Math.random() * 1280,
-                y: Math.random() * 720,
-                radius: Math.random() * 1.5 + 0.5,
-                alpha: Math.random() * 0.8 + 0.2,
-                twinkleSpeed: (Math.random() * 0.03 + 0.005) * (Math.random() < 0.5 ? 1 : -1),
-                speedY: Math.random() * 0.15 + 0.05
-            });
-        }
     }
 
     reset() {
@@ -89,28 +72,7 @@ export class ParticleSystem {
     }
 
     updateAndDraw(ctx, canvasWidth, canvasHeight) {
-        // 1. Draw Starfield Background
-        ctx.fillStyle = '#ffffff';
-        for (let star of this.stars) {
-            star.alpha += star.twinkleSpeed;
-            if (star.alpha > 0.95 || star.alpha < 0.2) {
-                star.twinkleSpeed = -star.twinkleSpeed;
-            }
-            star.y += star.speedY;
-            if (star.y > canvasHeight) {
-                star.y = 0;
-                star.x = Math.random() * canvasWidth;
-            }
-
-            ctx.save();
-            ctx.globalAlpha = star.alpha;
-            ctx.beginPath();
-            ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-        }
-
-        // 2. Update and Draw active particles
+        // Update and draw active gameplay particles.
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
             p.x += p.vx;

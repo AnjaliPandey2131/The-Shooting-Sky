@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SHOOTING STARS — 2D Survival Arcade</title>
+    <meta name="description" content="Shooting Stars: a fast-paced 2D survival arcade game. Dodge meteors, jump on moving platforms and collect glowing coins to restore energy!">
     <!-- Google Fonts for Arcade & Clean Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,7 +31,17 @@
                 </div>
             </div>
 
-            <!-- Top Right: Score -->
+            <!-- Top Center: Coin Counter -->
+            <div class="hud-group top-center">
+                <div class="hud-card coin-card">
+                    <span class="hud-label">COINS</span>
+                    <span id="hud-coin-val" class="hud-value coin-value">
+                        <span class="coin-icon">🪙</span><span id="hud-coin-num">0</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Top Right: Score + Audio -->
             <div class="hud-group top-right">
                 <div class="hud-card score-card">
                     <span class="hud-label">SCORE</span>
@@ -45,6 +56,23 @@
                 </button>
             </div>
 
+            <!-- ── FIRECRACKER ENERGY BAR (bottom-center) ── -->
+            <div id="energy-hud" class="energy-hud-wrap">
+                <div class="energy-hud-row">
+                    <span class="energy-label">⚡ ENERGY</span>
+                    <span id="energy-pct" class="energy-pct-text">100%</span>
+                </div>
+                <div id="energy-bar-wrap" class="energy-bar-outer">
+                    <div id="energy-fill" class="energy-bar-fill"></div>
+                    <div id="energy-tip"  class="energy-bar-tip"></div>
+                </div>
+                <!-- Shield Status beneath bar -->
+                <div class="shield-status-row">
+                    <span id="shield-count"  class="shield-count-text"></span>
+                    <span id="shield-active" class="shield-active-text"></span>
+                </div>
+            </div>
+
             <!-- Level Up Announcement Banner -->
             <div id="level-up-banner" class="banner-hidden">
                 <div class="banner-title" id="banner-title-text">LEVEL UP!</div>
@@ -57,7 +85,7 @@
             <div class="menu-card glass-panel">
                 <div class="logo-box">
                     <h1 class="game-title">SHOOTING<br><span class="highlight">STARS</span></h1>
-                    <p class="tagline">How long can you survive the collapsing sky?</p>
+                    <p class="tagline">Dodge the sky · jump platforms · collect ⭐ coins to fuel your run!</p>
                 </div>
 
                 <div class="controls-guide">
@@ -80,7 +108,11 @@
                             <span class="key-desc">RIGHT</span>
                         </div>
                     </div>
-                    <p class="control-note">Avoid falling meteors &amp; jump over breaking ground gaps!</p>
+                    <p class="control-note">
+                        Collect <span style="color:#FFD700">★ coins</span> to restore
+                        <span style="color:#00f0ff">⚡ energy</span> — every 10 coins earns a
+                        <span style="color:#a3e635">🛡 shield</span>!
+                    </p>
                 </div>
 
                 <div class="actions">
@@ -88,6 +120,7 @@
                         <span class="btn-text">START SURVIVAL</span>
                         <span class="btn-shine"></span>
                     </button>
+                    <button id="about-btn" class="secondary-btn" type="button">ABOUT</button>
                 </div>
 
                 <div class="best-score-display">
@@ -96,6 +129,72 @@
             </div>
         </div>
 
+        <!-- About Overlay Screen -->
+        <div id="about-screen" class="overlay-screen hidden">
+            <div class="menu-card glass-panel about-panel">
+<button id="about-back-btn" class="secondary-btn sticky-back">BACK TO GAME</button>
+                <div class="guide-header">
+                    <h1 class="guide-title">SHOOTING STARS</h1>
+                    <h2 class="guide-subtitle">YOUR GUIDE TO THE COSMOS</h2>
+                    <p class="hero-copy">An unpredictable universe. A fearless little traveller. Every jump brings a new challenge.</p>
+                    <img src="assets/guide/hero.png" alt="Game hero screenshot" class="hero-image"/>
+                </div>
+                <div class="guide-content">
+                    <!-- SECTION A – HERO -->
+                    
+                    <!-- SECTION B – HOW TO PLAY -->
+                    <section class="guide-section" id="section-controls">
+                        <h3 class="section-title">HOW TO PLAY</h3>
+                        <p class="section-content">Use the arrow keys to move and jump. Left Arrow – move left. Right Arrow – move right. Up Arrow – jump. Down Arrow – bend or crouch.</p>
+                        <img src="assets/guide/controls.png" alt="Keyboard controls illustration" class="section-image"/>
+                    </section>
+                    <!-- SECTION C – ENERGY SYSTEM -->
+                    <section class="guide-section" id="section-energy">
+                        <h3 class="section-title">ENERGY SYSTEM</h3>
+                        <p class="section-content">Keep an eye on your energy. Collect coins to recover power and stay ready for the challenges ahead.</p>
+                        <img src="assets/guide/energy.png" alt="Energy bar illustration" class="section-image"/>
+                    </section>
+                    <!-- SECTION D – GOLDEN COINS -->
+                    <section class="guide-section" id="section-coins">
+                        <h3 class="section-title">GOLDEN COINS</h3>
+                        <p class="section-content">Collect glowing coins to increase your score and restore energy. Every 10 coins grant a protective shield.</p>
+                    </section>
+                    <!-- SECTION E – SHIELD SYSTEM -->
+                    <section class="guide-section" id="section-shield">
+                        <h3 class="section-title">A MOMENT OF PROTECTION</h3>
+                        <p class="section-content">Earn a shield after collecting 10 coins. It activates automatically, lasts a few seconds, and protects you from hazards.</p>
+                    </section>
+                    <!-- SECTION F – RAGE BAIT COIN -->
+                    <section class="guide-section" id="section-ragebait">
+                        <h3 class="section-title">THINK YOU CAN CATCH ME?</h3>
+                        <p class="section-content">The mischievous Rage Bait Coin appears briefly, moves erratically, and offers a bonus when collected quickly.</p>
+                    </section>
+                    <!-- SECTION G – DANGERS OF THE COSMOS -->
+                    <section class="guide-section" id="section-dangers">
+                        <h3 class="section-title">DANGERS OF THE COSMOS</h3>
+                        <p class="section-content">Avoid falling meteors, asteroids, and other hazardous objects. Use your shield to survive close encounters.</p>
+                    </section>
+                    <!-- SECTION H – SOUNDTRACK -->
+                    <section class="guide-section" id="section-audio">
+                        <h3 class="section-title">SOUNDTRACK & COSMIC ATMOSPHERE</h3>
+                        <p class="section-content">Enjoy the retro‑styled soundtrack and sound effects that react to your actions. Mute can be toggled with the speaker button.</p>
+                    </section>
+                    <!-- SECTION I – CREATOR'S CORNER -->
+                    <section class="guide-section" id="section-creator">
+                        <h3 class="section-title">BEHIND THE STARS</h3>
+                        <p class="section-content">Shooting Stars is a neon‑lit space‑survival adventure where every jump is a risk, every coin is a chance, and the sky never stops moving.</p>
+                        <p class="section-content"><strong>Developed by Anjali Pandey</strong></p>
+                    </section>
+                    <!-- FINAL CALL TO ACTION -->
+                    <section class="guide-section" id="section-cta">
+                        <h3 class="section-title">READY TO PLAY?</h3>
+                        <p class="section-content">The sky is unpredictable. Your next move is yours.</p>
+                        <button id="about-close-btn" class="secondary-btn">RETURN TO GAME</button>
+                    </section>
+                </div>
+
+            </div>
+        </div>
         <!-- Game Over Screen -->
         <div id="gameover-screen" class="overlay-screen hidden">
             <div class="menu-card glass-panel gameover-panel">
@@ -121,6 +220,20 @@
                         <span class="stat-lbl">BEST RECORD</span>
                         <span id="go-best" class="stat-val">0</span>
                     </div>
+                    <div class="stat-box coins-stat">
+                        <span class="stat-lbl">COINS COLLECTED</span>
+                        <span id="go-coins" class="stat-val highlight-gold">0 🪙</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-lbl">SHIELDS EARNED</span>
+                        <span id="go-shields" class="stat-val">0 🛡</span>
+                    </div>
+                </div>
+
+                <!-- Coin Analytics Chart -->
+                <div class="analytics-section">
+                    <div class="analytics-title">⭐ COINS PER STAGE</div>
+                    <canvas id="analytics-chart" class="analytics-chart"></canvas>
                 </div>
 
                 <div id="new-record-badge" class="new-record-badge hidden">
