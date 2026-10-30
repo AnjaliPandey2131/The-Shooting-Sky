@@ -70,10 +70,20 @@ export class GameEngine {
     }
 
     initCanvasScale() {
-        this.canvas.width  = CONFIG.CANVAS_WIDTH;
-        this.canvas.height = CONFIG.CANVAS_HEIGHT;
+        const resize = () => {
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            const scale = Math.min(1, vw / CONFIG.CANVAS_WIDTH, vh / CONFIG.CANVAS_HEIGHT);
+            const dpr = window.devicePixelRatio || 1;
 
-        const resize = () => {};
+            this.container.style.width = `${CONFIG.CANVAS_WIDTH * scale}px`;
+            this.container.style.height = `${CONFIG.CANVAS_HEIGHT * scale}px`;
+            this.canvas.style.width = `${CONFIG.CANVAS_WIDTH * scale}px`;
+            this.canvas.style.height = `${CONFIG.CANVAS_HEIGHT * scale}px`;
+            this.canvas.width = CONFIG.CANVAS_WIDTH * dpr;
+            this.canvas.height = CONFIG.CANVAS_HEIGHT * dpr;
+            this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        };
         window.addEventListener('resize', resize);
         resize();
     }
