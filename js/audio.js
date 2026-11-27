@@ -46,10 +46,26 @@ class SoundManager {
         try {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             this.ctx = new AudioContext();
+            // Warm master bus: gentle low-pass filter + balanced gain
+            this.masterFilter = this.ctx.createBiquadFilter();
+            this.masterFilter.type = 'lowpass';
+            this.masterFilter.frequency.setValueAtTime(2800, this.ctx.currentTime);
+            this.masterFilter.Q.setValueAtTime(0.7, this.ctx.currentTime);
+
+            this.masterGain = this.ctx.createGain();
+            this.masterGain.gain.setValueAtTime(0.8, this.ctx.currentTime);
+
+            this.masterFilter.connect(this.masterGain);
+            this.masterGain.connect(this.ctx.destination);
             this.initialized = true;
         } catch (e) {
             console.warn("Web Audio API not supported", e);
         }
+    }
+
+    /** Destination node for all synth voices (falls back to ctx.destination). */
+    _out() {
+        return this.masterFilter || this.ctx?.destination;
     }
 
     ensureAudioContext() {
@@ -83,28 +99,32 @@ class SoundManager {
         if (hudIcon) hudIcon.textContent = icon;
     }
 
-    /** Helper: Create and connect a basic oscillator node */
-    _makeOsc(type, freq, gainVal, duration, detune = 0) {
+    /** Helper: Create and connect a warm oscillator with smooth ADSR envelope */
+    _makeOsc(type, freq, gainVal, duration, detune = 0, delay = 0) {
         if (!this.ctx) return null;
         if (this.activeNodes >= this.MAX_NODES) return null;
         this.activeNodes++;
 
+        const start = this.ctx.currentTime + delay;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
 
         osc.type = type;
-        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-        if (detune) osc.detune.setValueAtTime(detune, this.ctx.currentTime);
-        gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+        osc.frequency.setValueAtTime(freq, start);
+        if (detune) osc.detune.setValueAtTime(detune, start);
+
+        // Smooth attack (12ms) and exponential release (no harsh clicks)
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.linearRampToValueAtTime(gainVal, start + Math.min(0.014, duration * 0.25));
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
 
         osc.connect(gain);
-        gain.connect(this.ctx.destination);
+        gain.connect(this._out());
 
-        osc.start(this.ctx.currentTime);
-        osc.stop(this.ctx.currentTime + duration);
+        osc.start(start);
+        osc.stop(start + duration + 0.01);
         osc.onended = () => { this.activeNodes = Math.max(0, this.activeNodes - 1); };
-        return { osc, gain };
+        return { osc, gain, start };
     }
 
     /** ===================== ORIGINAL SOUNDS ===================== */
@@ -208,21 +228,10 @@ class SoundManager {
         this.ensureAudioContext();
         if (!this.ctx) return;
 
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(120, this.ctx.currentTime);
-        osc.frequency.setValueAtTime(60, this.ctx.currentTime + 0.08);
-
-        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
-
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.12);
+        const voice = this._makeOsc('triangle', 150, 0.16, 0.14);
+        if (voice) {
+            voice.osc.frequency.exponentialRampToValueAtTime(55, voice.start + 0.13);
+        }
     }
 
     playLevelUp() {
@@ -258,130 +267,26 @@ class SoundManager {
         this.ensureAudioContext();
         if (!this.ctx) return;
 
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(440, this.ctx.currentTime);
-        osc.frequency.setValueAtTime(880, this.ctx.currentTime + 0.1);
-
-        gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
-
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.2);
+        this._makeOsc('triangle', 523.25, 0.09, 0.11, 0, 0);
+        this._makeOsc('triangle', 659.25, 0.09, 0.14, 0, 0.09);
     }
 
-    /** ===================== NEW FUNNY CARTOON SOUNDS ===================== */
+    /** ===================== WARM ARCADE FOOTSTEPS ===================== */
 
-    /**
-     * Play a random funny movement sound.
-     * Called with cooldown tracking to avoid spam.
-     * @param {number} now    - current time in seconds (performance.now() / 1000)
-     * @param {number} cadence - energy cadence multiplier (0–1); lower = less frequent sounds
-     */
     playMoveSound(now, cadence = 1.0) {
         if (this.muted) return;
-        // Extend interval when tired (cadence < 1) → fewer foot sounds
         const effectiveInterval = this.MOVE_SOUND_INTERVAL / Math.max(0.3, cadence);
         if (now - this.lastMoveSoundTime < effectiveInterval) return;
         this.lastMoveSoundTime = now;
         this.ensureAudioContext();
         if (!this.ctx) return;
 
-        const variant = Math.floor(Math.random() * 5);
-        const pitchShift = (Math.random() - 0.5) * 80;
-        const t = this.ctx.currentTime;
-
-        switch (variant) {
-            case 0: // "Boop-boop!" — two quick pops
-                this._boopBoop(t, pitchShift);
-                break;
-            case 1: // "Nyoom!" — fast swipe
-                this._nyoom(t, pitchShift);
-                break;
-            case 2: // "Blblbl!" — stuttered lips
-                this._blblbl(t, pitchShift);
-                break;
-            case 3: // "Weee!" — rising whine
-                this._weee(t, pitchShift);
-                break;
-            case 4: // "Brrrup!" — rolling growl
-                this._brrrup(t, pitchShift);
-                break;
+        // Subtle, warm soft tap (no harsh sawtooth/square buzz)
+        const base = 240 + (Math.random() - 0.5) * 40;
+        const voice = this._makeOsc('sine', base, 0.045, 0.075);
+        if (voice) {
+            voice.osc.frequency.exponentialRampToValueAtTime(base * 0.65, voice.start + 0.07);
         }
-    }
-
-    _boopBoop(t, shift) {
-        [0, 0.12].forEach((delay, i) => {
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(440 + shift + i * 80, t + delay);
-            osc.frequency.exponentialRampToValueAtTime(320 + shift + i * 60, t + delay + 0.07);
-            gain.gain.setValueAtTime(0.16, t + delay);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + delay + 0.1);
-            osc.connect(gain); gain.connect(this.ctx.destination);
-            osc.start(t + delay); osc.stop(t + delay + 0.1);
-        });
-    }
-
-    _nyoom(t, shift) {
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(600 + shift, t);
-        osc.frequency.exponentialRampToValueAtTime(120 + shift, t + 0.18);
-        gain.gain.setValueAtTime(0.14, t);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
-        osc.connect(gain); gain.connect(this.ctx.destination);
-        osc.start(t); osc.stop(t + 0.2);
-    }
-
-    _blblbl(t, shift) {
-        for (let i = 0; i < 4; i++) {
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(300 + shift + i * 20, t + i * 0.05);
-            gain.gain.setValueAtTime(0.1, t + i * 0.05);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.05 + 0.04);
-            osc.connect(gain); gain.connect(this.ctx.destination);
-            osc.start(t + i * 0.05); osc.stop(t + i * 0.05 + 0.05);
-        }
-    }
-
-    _weee(t, shift) {
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(280 + shift, t);
-        osc.frequency.exponentialRampToValueAtTime(760 + shift, t + 0.22);
-        gain.gain.setValueAtTime(0.16, t);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
-        osc.connect(gain); gain.connect(this.ctx.destination);
-        osc.start(t); osc.stop(t + 0.25);
-    }
-
-    _brrrup(t, shift) {
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        // LFO-style amplitude modulation using a second osc connected to gain
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(220 + shift, t);
-        osc.frequency.exponentialRampToValueAtTime(180 + shift, t + 0.18);
-        gain.gain.setValueAtTime(0.14, t);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-        // Add a quick wobble via detune oscillation
-        osc.detune.setValueAtTime(0, t);
-        osc.detune.linearRampToValueAtTime(400, t + 0.05);
-        osc.detune.linearRampToValueAtTime(-200, t + 0.12);
-        osc.detune.linearRampToValueAtTime(0, t + 0.2);
-        osc.connect(gain); gain.connect(this.ctx.destination);
-        osc.start(t); osc.stop(t + 0.22);
     }
 
     /**
@@ -452,83 +357,31 @@ class SoundManager {
         });
     }
 
-    playRageBaitReaction(reaction, dialogue = '') {
-        if (this.muted) return;
-        this.ensureAudioContext();
-        if (!this.ctx && (!window.speechSynthesis || !window.SpeechSynthesisUtterance)) return;
-
-        if ((reaction === 'escaped' || reaction === 'collected') && this.rageBaitUtterance) {
-            this.stopRageBaitSpeech();
-        }
-        if (dialogue && this._speakRageBait(dialogue, reaction)) return;
-        this._playRageBaitTone(reaction);
-    }
-
-    _speakRageBait(dialogue, reaction) {
-        if (this.rageBaitUtterance) return true;
-        const synthesis = window.speechSynthesis;
-        const Utterance = window.SpeechSynthesisUtterance;
-        if (!synthesis || !Utterance || synthesis.speaking) return false;
-
-        try {
-            const utterance = new Utterance(dialogue);
-            utterance.lang = 'en-US';
-            utterance.rate = 1.12;
-            utterance.pitch = 1.18;
-            utterance.volume = 0.72;
-            const voices = typeof synthesis.getVoices === 'function' ? synthesis.getVoices() : [];
-            const englishVoice = voices.find(voice =>
-                voice.lang && voice.lang.toLowerCase().startsWith('en')
-            );
-            if (englishVoice) utterance.voice = englishVoice;
-            this.rageBaitUtterance = utterance;
-            utterance.onend = () => {
-                if (this.rageBaitUtterance === utterance) this.rageBaitUtterance = null;
-            };
-            utterance.onerror = () => {
-                if (this.rageBaitUtterance !== utterance) return;
-                this.rageBaitUtterance = null;
-                if (!this.muted) this._playRageBaitTone(reaction);
-            };
-            synthesis.speak(utterance);
-            return true;
-        } catch (error) {
-            this.rageBaitUtterance = null;
-            this._playRageBaitTone(reaction);
-            return true;
-        }
-    }
-
-    stopRageBaitSpeech() {
-        const utterance = this.rageBaitUtterance;
-        this.rageBaitUtterance = null;
-        if (!utterance) return;
-        const synthesis = window.speechSynthesis;
-        if (synthesis) synthesis.cancel();
-    }
-
-    _playRageBaitTone(reaction) {
+    playRageBaitReaction(reaction, _dialogue = '') {
         if (this.muted) return;
         this.ensureAudioContext();
         if (!this.ctx) return;
+        this._playRageBaitTone(reaction);
+    }
 
-        const notes = {
-            appear: [560, 390],
-            escaped: [420, 230],
-            collected: [760, 1120],
-            laugh: [740, 610],
-            close: [880, 540]
+    stopRageBaitSpeech() {
+        this.rageBaitUtterance = null;
+    }
+
+    _playRageBaitTone(reaction) {
+        if (this.muted || !this.ctx) return;
+
+        const phrases = {
+            appear:    [523.25, 659.25],
+            escaped:   [440.00, 329.63],
+            collected: [659.25, 987.77],
+            laugh:     [587.33, 493.88],
+            close:     [783.99, 587.33]
         }[reaction];
-        if (!notes) return;
+        if (!phrases) return;
 
-        const first = this._makeOsc('triangle', notes[0], 0.11, 0.16);
-        this._makeOsc('sine', notes[1], 0.09, 0.2);
-        if (first) {
-            first.osc.frequency.exponentialRampToValueAtTime(
-                notes[1],
-                this.ctx.currentTime + 0.16
-            );
-        }
+        this._makeOsc('sine', phrases[0], 0.08, 0.12, 0, 0);
+        this._makeOsc('triangle', phrases[1], 0.07, 0.16, 0, 0.08);
     }
 
     /**
@@ -569,53 +422,18 @@ class SoundManager {
     }
 
     /**
-     * "Womp-womp!" — cartoon death/loss sound
+     * Warm descending arcade game-over cue (smooth sine/triangle, no harsh buzz)
      */
     playWomp() {
         if (this.muted) return;
         this.ensureAudioContext();
         if (!this.ctx) return;
 
-        const t = this.ctx.currentTime;
-
-        // Trombone-style descending "waaah"
-        const osc = this.ctx.createOscillator();
-        const g = this.ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(380, t);
-        osc.frequency.exponentialRampToValueAtTime(260, t + 0.2);
-        osc.frequency.exponentialRampToValueAtTime(180, t + 0.45);
-        osc.frequency.exponentialRampToValueAtTime(80, t + 0.7);
-        g.gain.setValueAtTime(0.28, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.75);
-
-        // Low-pass filter for trombone warmth
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(1200, t);
-        filter.frequency.exponentialRampToValueAtTime(200, t + 0.7);
-
-        osc.connect(filter);
-        filter.connect(g);
-        g.connect(this.ctx.destination);
-        osc.start(t); osc.stop(t + 0.75);
-
-        // Second "womp" at lower pitch
-        setTimeout(() => {
-            if (!this.ctx) return;
-            const t2 = this.ctx.currentTime;
-            const osc2 = this.ctx.createOscillator();
-            const g2 = this.ctx.createGain();
-            osc2.type = 'sawtooth';
-            osc2.frequency.setValueAtTime(260, t2);
-            osc2.frequency.exponentialRampToValueAtTime(100, t2 + 0.55);
-            g2.gain.setValueAtTime(0.25, t2);
-            g2.gain.exponentialRampToValueAtTime(0.001, t2 + 0.6);
-            const f2 = this.ctx.createBiquadFilter();
-            f2.type = 'lowpass'; f2.frequency.value = 800;
-            osc2.connect(f2); f2.connect(g2); g2.connect(this.ctx.destination);
-            osc2.start(t2); osc2.stop(t2 + 0.6);
-        }, 350);
+        const notes = [329.63, 293.66, 246.94, 196.00]; // E4 -> D4 -> B3 -> G3
+        notes.forEach((freq, idx) => {
+            this._makeOsc('triangle', freq, 0.13, 0.22, 0, idx * 0.11);
+            this._makeOsc('sine', freq * 0.5, 0.10, 0.26, 0, idx * 0.11);
+        });
     }
 
     /**

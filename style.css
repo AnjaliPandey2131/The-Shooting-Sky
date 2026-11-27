@@ -797,7 +797,7 @@ html, body {
 }
 
 .coins-stat {
-    grid-column: span 3 !important;
+    grid-column: span 1 !important;
 }
 
 /* ─────────────────────────────────────────────────────────────
