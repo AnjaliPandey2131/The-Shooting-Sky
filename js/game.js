@@ -98,7 +98,7 @@ export class GameEngine {
         this._bindBackGuard();
         this._bindRotateHint();
         sound.syncMuteUI();
-        this.showMenu();
+        this.ui.hideAllOverlays();
     }
 
     initCanvasScale() {
@@ -156,18 +156,18 @@ export class GameEngine {
             if (e.code === 'ArrowDown')  this.keys.down  = false;
         });
 
-        document.getElementById('start-btn').addEventListener('click', () => {
+        document.getElementById('start-btn')?.addEventListener('click', () => {
             sound.ensureAudioContext();
             this.startGame();
         });
 
-        document.getElementById('restart-btn').addEventListener('click', () => {
+        document.getElementById('restart-btn')?.addEventListener('click', () => {
             sound.ensureAudioContext();
             this.startGame();
         });
 
-        document.getElementById('main-menu-btn').addEventListener('click', () => {
-            this.showMenu();
+        document.getElementById('main-menu-btn')?.addEventListener('click', () => {
+            if (this._onReturnToDashboardCb) this._onReturnToDashboardCb();
         });
 
         document.getElementById('hud-theme-btn')?.addEventListener('click', () => {
@@ -405,7 +405,7 @@ export class GameEngine {
         this.introTimer = 0;
         this.rocketY = CONFIG.CANVAS_HEIGHT;
         this.cameraOffset = 0;
-        this.ui.showStartScreen();
+        this.ui.hideAllOverlays();
     }
 
     gameOver(reason) {

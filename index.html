@@ -90,8 +90,8 @@
             </div>
         </div>
 
-        <!-- Start Menu Screen -->
-        <div id="start-screen" class="overlay-screen">
+        <!-- Start Menu Screen (kept hidden; Dashboard acts as Main Menu) -->
+        <div id="start-screen" class="overlay-screen hidden">
             <div class="menu-card glass-panel">
                 <div class="logo-box">
                     <h1 class="game-title">SHOOTING<br><span class="highlight">STARS</span></h1>
@@ -258,12 +258,6 @@
                     </div>
                 </div>
 
-                <!-- Coin Analytics Chart -->
-                <div class="analytics-section">
-                    <div class="analytics-title">⭐ COINS PER STAGE</div>
-                    <canvas id="analytics-chart" class="analytics-chart"></canvas>
-                </div>
-
                 <div id="new-record-badge" class="new-record-badge hidden">
                     ★ NEW HIGH SCORE! ★
                 </div>
@@ -271,9 +265,6 @@
                 <div class="actions button-row">
                     <button id="restart-btn" class="primary-btn glowing-btn">
                         <span>TRY AGAIN</span>
-                    </button>
-                    <button id="main-menu-btn" class="secondary-btn">
-                        <span>MAIN MENU</span>
                     </button>
                     <button id="dashboard-btn" class="secondary-btn dashboard-return-btn">
                         <span>📊 DASHBOARD</span>

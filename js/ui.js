@@ -119,6 +119,13 @@ export class UIManager {
         }
     }
 
+    hideAllOverlays() {
+        if (this.startScreen)    this.startScreen.classList.add('hidden');
+        if (this.gameoverScreen) this.gameoverScreen.classList.add('hidden');
+        if (this.hudLayer)       this.hudLayer.classList.add('hidden');
+        if (this.aboutScreen)    this.aboutScreen.classList.add('hidden');
+    }
+
     showStartScreen() {
         this.startScreen.classList.remove('hidden');
         this.gameoverScreen.classList.add('hidden');
