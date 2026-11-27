@@ -1,11 +1,11 @@
 /* -------------------------------------------------------------
    SHOOTING STARS - Main Entry Point
-   Initializes the game engine when the document is ready
+   Boots the authenticated application shell.
+   The game engine is not started until the user signs in.
    ------------------------------------------------------------- */
 
-import { GameEngine } from './game.js';
+import { bootApp } from './app.js';
 
 window.addEventListener('DOMContentLoaded', () => {
-    const game = new GameEngine();
-    game.startLoop();
+    bootApp();
 });

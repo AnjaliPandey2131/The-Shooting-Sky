@@ -107,17 +107,15 @@ export class UIManager {
         if (aboutBtn) {
             aboutBtn.addEventListener('click', () => this.showAboutScreen());
         }
-        // About close button
+        // About back button (top of panel)
+        const aboutBackBtn = document.getElementById('about-back-btn');
+        if (aboutBackBtn) {
+            aboutBackBtn.addEventListener('click', () => this.hideAboutScreen());
+        }
+        // About close button (bottom CTA)
         const aboutCloseBtn = document.getElementById('about-close-btn');
         if (aboutCloseBtn) {
             aboutCloseBtn.addEventListener('click', () => this.hideAboutScreen());
-        }
-
-        if (this.audioToggleBtn) {
-            this.audioToggleBtn.addEventListener('click', () => {
-                const isMuted = this.sound.toggleMute();
-                this.audioIcon.textContent = isMuted ? '🔇' : '🔊';
-            });
         }
     }
 
