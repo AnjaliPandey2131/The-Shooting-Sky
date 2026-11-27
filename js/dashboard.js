@@ -64,6 +64,28 @@ export async function refreshDashboardAfterGame() {
     await _loadAndRender();
 }
 
+const svg = (paths, size = 16) =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+
+const ICONS = {
+    stats:       svg('<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>'),
+    leaderboard: svg('<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>'),
+    missions:    svg('<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>'),
+    armory:      svg('<circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2Z"/>'),
+    history:     svg('<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>'),
+    play:        svg('<polygon points="6 3 20 12 6 21 6 3"/>', 15),
+    logout:      svg('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>', 14),
+    crosshair:   svg('<circle cx="12" cy="12" r="10"/><line x1="22" x2="18" y1="12" y2="12"/><line x1="6" x2="2" y1="12" y2="12"/><line x1="12" x2="12" y1="6" y2="2"/><line x1="12" x2="12" y1="22" y2="18"/>'),
+    flame:       svg('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>'),
+    gamepad:     svg('<line x1="6" x2="10" y1="12" y2="12"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="15" x2="15.01" y1="13" y2="13"/><line x1="18" x2="18.01" y1="11" y2="11"/><rect width="20" height="12" x="2" y="6" rx="2"/>'),
+    coins:       svg('<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/>'),
+    gem:         svg('<path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/>'),
+    layers:      svg('<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>'),
+    clock:       svg('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'),
+    globe:       svg('<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>', 14),
+    refresh:     svg('<path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/>', 14)
+};
+
 // ── Build DOM ─────────────────────────────────────────────────────────────────
 function _build() {
     const isLight = getTheme() === 'light';
@@ -83,28 +105,31 @@ function _build() {
                         <div id="dash-name"  class="profile-name">Loading…</div>
                         <div id="dash-email" class="profile-email"></div>
                     </div>
-                    <button id="dash-logout" class="logout-btn" title="Sign out">⏻ Logout</button>
+                    <button id="dash-logout" class="logout-btn" title="Sign out">
+                        ${ICONS.logout}
+                        <span>Logout</span>
+                    </button>
                 </div>
 
-                <button id="dash-start-btn" class="primary-btn pulse-glow dash-start-btn">
-                    <span class="btn-text">🚀 START GAME</span>
-                    <span class="btn-shine"></span>
+                <button id="dash-start-btn" class="primary-btn dash-start-btn">
+                    <span class="btn-text">${ICONS.play}<span>START GAME</span></span>
                 </button>
 
                 <div class="dash-nav">
-                    <div class="nav-item active" data-panel="stats">📊 Stats</div>
-                    <div class="nav-item" data-panel="history">📋 History</div>
-                    <div class="nav-item" data-panel="leaderboard">🏆 Top 10</div>
-                    <div class="nav-item" data-panel="armory">🎨 Armory</div>
+                    <div class="nav-item active" data-panel="stats">${ICONS.stats}<span>Stats</span></div>
+                    <div class="nav-item" data-panel="leaderboard">${ICONS.leaderboard}<span>Top 10</span></div>
+                    <div class="nav-item" data-panel="missions">${ICONS.missions}<span>Missions</span></div>
+                    <div class="nav-item" data-panel="armory">${ICONS.armory}<span>Armory</span></div>
+                    <div class="nav-item" data-panel="history">${ICONS.history}<span>History</span></div>
                 </div>
 
                 <div class="dash-controls-row">
                     <button id="dash-theme-btn" class="dash-util-btn" data-theme-toggle type="button" title="Toggle Theme">
-                        <span class="theme-icon">${isLight ? '☀️' : '🌙'}</span>
+                        <span class="theme-icon" data-svg-icon="true"></span>
                         <span class="theme-label">${isLight ? 'Solar Sky' : 'Midnight Space'}</span>
                     </button>
                     <button id="dash-mute-btn" class="dash-util-btn" type="button" title="Toggle Sound">
-                        <span data-mute-icon>${sound.muted ? '🔇' : '🔊'}</span>
+                        <span data-mute-icon data-svg-icon="true"></span>
                         <span data-mute-label>${sound.muted ? 'Sound Off' : 'Sound On'}</span>
                     </button>
                 </div>
@@ -112,72 +137,76 @@ function _build() {
 
             <!-- ── RIGHT PANEL ── -->
             <main class="dash-main">
-                <!-- Stats panel -->
+                <!-- 1. Stats panel (World Selector + Stats ONLY) -->
                 <div id="dash-panel-stats" class="dash-panel active">
                     <div class="dash-heading-row">
-                        <h2 class="dash-heading">Your Cosmic Journey</h2>
-                        <span id="dash-streak-badge" class="streak-bonus-badge hidden">🔥 Streak Bonus Active (+10% Score)</span>
+                        <h2 class="dash-heading">Command Deck</h2>
+                        <span id="dash-streak-badge" class="streak-bonus-badge hidden">${ICONS.flame}<span>Streak Bonus +10%</span></span>
                     </div>
 
                     <!-- World Selector -->
                     <div class="world-selector-wrap">
-                        <div class="world-selector-title">🌌 SELECT WORLD</div>
+                        <div class="world-selector-title">${ICONS.globe}<span>SELECT WORLD</span></div>
                         <div id="dash-world-grid" class="world-grid"></div>
                     </div>
 
-                    <!-- Daily Mini-Missions -->
-                    <div class="missions-wrap glass-panel">
-                        <div class="missions-header">
-                            <span class="world-selector-title" style="margin-bottom:0">🎯 DAILY MISSIONS</span>
-                            <span class="missions-sub">Resets daily</span>
-                        </div>
-                        <div id="dash-missions-list" class="missions-list"></div>
-                    </div>
-
                     <div class="stats-cards" id="dash-stats-cards">
-                        ${_statCardHTML('🏆', 'Best Score',       'dash-best-score',  '—')}
-                        ${_statCardHTML('🎯', 'Last Score',        'dash-prev-score',  '—')}
-                        ${_statCardHTML('🔥', 'Daily Streak',      'dash-streak',      '0 Days')}
-                        ${_statCardHTML('🎮', 'Games Played',      'dash-total-games', '—')}
-                        ${_statCardHTML('🪙', 'Coins Collected',   'dash-total-coins', '—')}
-                        ${_statCardHTML('💎', 'Gems',              'dash-total-gems',  '0')}
-                        ${_statCardHTML('🌌', 'Highest Stage',     'dash-high-stage',  '—')}
-                        ${_statCardHTML('⏱', 'Total Playtime',    'dash-total-time',  '—')}
+                        ${_statCardHTML(ICONS.leaderboard, 'Best Score',    'dash-best-score',  '—')}
+                        ${_statCardHTML(ICONS.crosshair,   'Last Score',    'dash-prev-score',  '—')}
+                        ${_statCardHTML(ICONS.flame,       'Daily Streak',  'dash-streak',      '0 Days')}
+                        ${_statCardHTML(ICONS.gamepad,     'Games Played',  'dash-total-games', '—')}
+                        ${_statCardHTML(ICONS.coins,       'Total Coins',   'dash-total-coins', '—')}
+                        ${_statCardHTML(ICONS.gem,         'Gems',          'dash-total-gems',  '0')}
+                        ${_statCardHTML(ICONS.layers,      'Highest Stage', 'dash-high-stage',  '—')}
+                        ${_statCardHTML(ICONS.clock,       'Playtime',      'dash-total-time',  '—')}
                     </div>
                     <div id="dash-empty-stats" class="dash-empty hidden">
-                        <div class="empty-icon">🚀</div>
-                        <p>Your stats will appear here after your first game!</p>
-                        <p class="empty-sub">Hit "Start Game" to begin your cosmic journey.</p>
+                        <div class="empty-icon">${ICONS.play}</div>
+                        <p>Your telemetry will appear here after your first run.</p>
+                        <p class="empty-sub">Press Start Game to launch.</p>
                     </div>
                 </div>
 
-                <!-- History panel -->
-                <div id="dash-panel-history" class="dash-panel">
-                    <h2 class="dash-heading">Recent Games</h2>
-                    <div id="dash-history-list" class="history-list">
-                        <div class="history-loading">Loading…</div>
-                    </div>
-                    <button id="dash-load-more" class="secondary-btn load-more-btn hidden">Load More</button>
-                </div>
-
-                <!-- Leaderboard panel -->
+                <!-- 2. Leaderboard panel -->
                 <div id="dash-panel-leaderboard" class="dash-panel">
                     <div class="dash-heading-row">
                         <h2 class="dash-heading">Global Leaderboard (Top 10)</h2>
-                        <button id="dash-lb-refresh" class="secondary-btn lb-refresh-btn" type="button">↻ Refresh</button>
+                        <button id="dash-lb-refresh" class="secondary-btn lb-refresh-btn" type="button">
+                            ${ICONS.refresh}<span>Refresh</span>
+                        </button>
                     </div>
                     <div id="dash-leaderboard-list" class="leaderboard-list">
                         <div class="history-loading">Loading…</div>
                     </div>
                 </div>
 
-                <!-- Armory / Skins panel -->
+                <!-- 3. Daily Missions panel (Dedicated Tab) -->
+                <div id="dash-panel-missions" class="dash-panel">
+                    <div class="dash-heading-row">
+                        <h2 class="dash-heading">Daily Missions</h2>
+                        <span class="missions-sub">Resets daily at midnight</span>
+                    </div>
+                    <div class="missions-wrap glass-panel">
+                        <div id="dash-missions-list" class="missions-list"></div>
+                    </div>
+                </div>
+
+                <!-- 4. Armory / Skins panel -->
                 <div id="dash-panel-armory" class="dash-panel">
                     <div class="dash-heading-row">
                         <h2 class="dash-heading">Stickman Armory</h2>
-                        <span id="armory-coin-balance" class="armory-balance">🪙 0 Coins</span>
+                        <span id="armory-coin-balance" class="armory-balance">0 Coins</span>
                     </div>
                     <div id="dash-armory-grid" class="armory-grid"></div>
+                </div>
+
+                <!-- 5. History panel -->
+                <div id="dash-panel-history" class="dash-panel">
+                    <h2 class="dash-heading">Recent Games</h2>
+                    <div id="dash-history-list" class="history-list">
+                        <div class="history-loading">Loading…</div>
+                    </div>
+                    <button id="dash-load-more" class="secondary-btn load-more-btn hidden">Load More</button>
                 </div>
             </main>
         </div>
@@ -186,6 +215,13 @@ function _build() {
     document.body.appendChild(_dashScreen);
     _spawnStars();
     _bindDashEvents();
+    sound.syncMuteUI();
+    const themeIconEl = document.querySelector('#dash-theme-btn .theme-icon');
+    if (themeIconEl) {
+        themeIconEl.innerHTML = isLight
+            ? svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41m11.32-11.32 1.41-1.41"/>', 15)
+            : svg('<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>', 15);
+    }
 }
 
 function _statCardHTML(icon, label, id, val) {
@@ -252,6 +288,8 @@ function _bindDashEvents() {
                 _loadHistory(true);
             } else if (item.dataset.panel === 'leaderboard') {
                 _loadLeaderboard();
+            } else if (item.dataset.panel === 'missions') {
+                _renderDailyMissions(_cachedProfile);
             } else if (item.dataset.panel === 'armory') {
                 _renderArmory(_cachedProfile);
             }
@@ -455,7 +493,7 @@ function _renderArmory(profile) {
     const unlocked = new Set(Array.isArray(profile?.unlockedSkins) ? profile.unlockedSkins : ['cyan']);
     unlocked.add('cyan');
 
-    if (balEl) balEl.textContent = `🪙 ${totalCoins.toLocaleString()} Coins`;
+    if (balEl) balEl.textContent = `${totalCoins.toLocaleString()} Coins`;
     grid.innerHTML = '';
 
     SKINS.forEach(skin => {

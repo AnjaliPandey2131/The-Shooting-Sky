@@ -1589,12 +1589,12 @@ html, body {
 
     .dash-nav {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 4px;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 3px;
         width: 100%;
         padding: 4px;
-        border-radius: 12px;
-        background: rgba(255,255,255,0.05);
+        border-radius: 10px;
+        background: rgba(255,255,255,0.04);
     }
 
     .nav-item {
@@ -2907,5 +2907,190 @@ html, body {
     .nav-item {
         font-size: 0.66rem;
         padding: 8px 2px;
+    }
+}
+
+
+/* ═════════════════════════════════════════════════════════════
+   HANDCRAFTED INDIE ARCADE UI POLISH (Dashboard & Login)
+   Clean matte surfaces, 1px hairline borders, crisp SVGs,
+   tabular numerals, and restrained accent usage.
+   ═════════════════════════════════════════════════════════════ */
+
+#dashboard-screen .glass-panel,
+#login-screen .glass-panel {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: #101626;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="light"] #dashboard-screen .glass-panel,
+[data-theme="light"] #login-screen .glass-panel {
+    background: #ffffff;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+}
+
+#dashboard-screen .dash-sidebar {
+    background: #0c111e;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: none;
+}
+
+[data-theme="light"] #dashboard-screen .dash-sidebar {
+    background: #f8fafc;
+    border-right: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+/* Crisp SVG alignment across sidebar, cards, and buttons */
+.nav-item,
+.logout-btn,
+.dash-util-btn,
+.world-selector-title,
+.streak-bonus-badge,
+.lb-refresh-btn,
+.login-features span,
+.dash-start-btn .btn-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.nav-item:hover {
+    transform: translateY(-1px);
+}
+
+.nav-item:active {
+    transform: scale(0.98);
+}
+
+.nav-item svg {
+    flex-shrink: 0;
+    opacity: 0.78;
+}
+
+.nav-item.active svg {
+    opacity: 1;
+}
+
+/* Primary CTA reserved accent */
+.dash-start-btn {
+    justify-content: center;
+    box-shadow: 0 4px 14px rgba(0, 240, 255, 0.22);
+    transition: transform 0.12s ease, box-shadow 0.15s ease;
+}
+
+.dash-start-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(0, 240, 255, 0.3);
+}
+
+.dash-start-btn:active {
+    transform: scale(0.98);
+}
+
+/* Tactile press & hover states on interactive cards/buttons */
+.world-card,
+.skin-card,
+.dash-util-btn,
+.logout-btn,
+.lb-refresh-btn,
+.skin-btn,
+.theme-toggle-btn {
+    transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.world-card:hover:not(:disabled),
+.dash-util-btn:hover,
+.logout-btn:hover,
+.lb-refresh-btn:hover,
+.skin-btn:hover:not(:disabled),
+.theme-toggle-btn:hover {
+    transform: translateY(-1px);
+}
+
+.world-card:active:not(:disabled),
+.dash-util-btn:active,
+.logout-btn:active,
+.lb-refresh-btn:active,
+.skin-btn:active:not(:disabled),
+.theme-toggle-btn:active {
+    transform: scale(0.98);
+}
+
+/* Stat cards: restrained glow, crisp micro-labels, tabular numbers */
+.stat-card {
+    box-shadow: none !important;
+    transition: transform 0.12s ease, border-color 0.15s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="light"] .stat-card:hover {
+    border-color: rgba(15, 23, 42, 0.22);
+}
+
+.stat-card-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+[data-theme="light"] .stat-card-icon {
+    color: #475569;
+}
+
+.stat-card-label {
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    opacity: 0.72;
+}
+
+.stat-card-value,
+.lb-score,
+.lb-rank,
+.hr-score,
+.hr-time,
+.hr-coins,
+.mission-count,
+.armory-balance {
+    font-variant-numeric: tabular-nums;
+}
+
+.stat-card-value {
+    text-shadow: none !important;
+}
+
+.dash-heading {
+    text-shadow: none !important;
+}
+
+/* Mobile 5-tab bar: crisp icon-above-label so all 5 tabs fit with zero clipping */
+@media (max-width: 860px) {
+    .dash-nav .nav-item {
+        flex-direction: column;
+        justify-content: center;
+        gap: 3px;
+        padding: 7px 2px;
+        font-size: 0.62rem;
+        line-height: 1.1;
+    }
+
+    .dash-nav .nav-item svg {
+        width: 14px;
+        height: 14px;
     }
 }

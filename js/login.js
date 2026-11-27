@@ -31,7 +31,7 @@ function _build() {
     _loginScreen.innerHTML = `
         <div class="login-stars" id="login-stars-bg"></div>
         <button id="login-theme-btn" class="theme-toggle-btn floating-theme-btn" data-theme-toggle type="button" title="Toggle Theme">
-            <span class="theme-icon">${isLight ? '☀️' : '🌙'}</span>
+            <span class="theme-icon" data-svg-icon="true"></span>
             <span class="theme-label">${isLight ? 'Solar Sky' : 'Midnight Space'}</span>
         </button>
         <div class="login-card glass-panel">
@@ -42,9 +42,9 @@ function _build() {
             </div>
 
             <div class="login-features">
-                <span>🏆 Personal Leaderboard</span>
-                <span>📊 Cloud Statistics</span>
-                <span>🎮 Persistent Progress</span>
+                <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg> Global Top 10</span>
+                <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg> Cloud Stats</span>
+                <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> Daily Missions</span>
             </div>
 
             <button id="google-signin-btn" class="google-btn">
@@ -78,6 +78,14 @@ function _build() {
 
     _signInBtn.addEventListener('click', _handleSignIn);
     document.getElementById('login-theme-btn')?.addEventListener('click', () => toggleTheme());
+    // Sync SVG icon immediately
+    document.documentElement.setAttribute('data-theme', getTheme());
+    const themeIconEl = document.querySelector('#login-theme-btn .theme-icon');
+    if (themeIconEl) {
+        themeIconEl.innerHTML = getTheme() === 'light'
+            ? `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41m11.32-11.32 1.41-1.41"/></svg>`
+            : `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`;
+    }
 }
 
 // ── Animated star background ──────────────────────────────────────────────────
