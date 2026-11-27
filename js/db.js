@@ -166,9 +166,9 @@ export async function syncLeaderboardEntry(uid, displayName, bestScore, highestS
 
 // ── Fetch Top 10 Global Leaderboard ───────────────────────────────────────────
 /**
- * Fetches Top 10 players ordered by bestScore descending.
+ * Fetches Top 20 players ordered by bestScore descending.
  */
-export async function fetchLeaderboard(topN = 10) {
+export async function fetchLeaderboard(topN = 20) {
     const q = query(
         leaderboardCol(),
         orderBy('bestScore', 'desc'),

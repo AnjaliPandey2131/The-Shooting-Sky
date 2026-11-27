@@ -29,6 +29,7 @@ import { PowerUpManager } from './powerups.js';
 import { GemManager } from './gems.js';
 import { getWorldById, getSavedWorldId } from './worlds.js';
 import { getSavedSkinId } from './skins.js';
+import { TutorialManager } from './tutorial.js';
 
 export const GAME_STATE = {
     MENU: 0,
@@ -99,10 +100,19 @@ export class GameEngine {
 
         // Pause state
         this.isPaused = false;
+        this.tutorialPaused = false;
         this.pauseOverlay = document.getElementById('pause-overlay');
         this.touchControls = document.getElementById('touch-controls');
         this._touchReleaseHandlers = [];
         this._historyGuardActive = false;
+
+        this.tutorial = new TutorialManager({
+            onPauseChange: (paused) => {
+                this.tutorialPaused = paused;
+                if (paused) this._clearTouchInputs();
+            },
+            isTouchDevice: () => this._isTouchDevice()
+        });
 
         // Screen shake (visual juice)
         this.shakeTimer = 0;
@@ -212,6 +222,8 @@ export class GameEngine {
 
         document.getElementById('pause-dashboard-btn')?.addEventListener('click', () => {
             this._resumeFromPause(true);
+            this.tutorial.stop();
+            this.tutorialPaused = false;
             this.state = GAME_STATE.MENU;
             this._setTouchControlsVisible(false);
             if (this._onReturnToDashboardCb) this._onReturnToDashboardCb();
@@ -446,6 +458,8 @@ export class GameEngine {
         this.spaceBackground.setWorld(this.activeWorld.id);
         this.spaceBackground.setWindForce(0);
         this.energy.reset();
+        this.tutorialPaused = false;
+        this.tutorial.start(Boolean(opts.forceTutorial));
         this._clearTouchInputs();
 
         this.state = GAME_STATE.INTRO;
@@ -545,6 +559,8 @@ export class GameEngine {
     _finalizeGameOver(reason) {
         if (this.state === GAME_STATE.GAMEOVER) return;
         this.state = GAME_STATE.GAMEOVER;
+        this.tutorial.stop();
+        this.tutorialPaused = false;
         this._clearTouchInputs();
         this._setTouchControlsVisible(false);
         this.rageBait.reset(sound);
@@ -663,7 +679,7 @@ export class GameEngine {
             if (this.shakeTimer === 0) this.shakeIntensity = 0;
         }
 
-        if (this.isPaused) {
+        if (this.isPaused || this.tutorialPaused) {
             this.spaceBackground.update(dt);
             return;
         }
@@ -844,6 +860,7 @@ export class GameEngine {
                 this.energy.shieldTimer
             );
             this.ui.updatePowerUpHUD(this.powerUps.active, this.activeWorld, windForce);
+            this.tutorial.update(dt, this.difficulty.hazards.length > 0);
 
         } else if (this.state === GAME_STATE.MENU) {
             this.difficulty.update(dt * 0.5, this.particles, this.platform, sound);

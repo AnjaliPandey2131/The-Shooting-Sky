@@ -11,6 +11,7 @@ import { sound }                      from './audio.js';
 import { WORLDS, isWorldUnlocked, getSavedWorldId, saveLocalWorldId } from './worlds.js';
 import { SKINS, getSavedSkinId, saveLocalSkinId } from './skins.js';
 import { MISSION_DEFS, normalizeDailyMissions } from './missions.js';
+import { resetTutorial } from './tutorial.js';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let _dashScreen     = null;
@@ -83,7 +84,8 @@ const ICONS = {
     layers:      svg('<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>'),
     clock:       svg('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'),
     globe:       svg('<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>', 14),
-    refresh:     svg('<path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/>', 14)
+    refresh:     svg('<path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/>', 14),
+    guide:       svg('<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>', 15)
 };
 
 // ── Build DOM ─────────────────────────────────────────────────────────────────
@@ -117,7 +119,7 @@ function _build() {
 
                 <div class="dash-nav">
                     <div class="nav-item active" data-panel="stats">${ICONS.stats}<span>Stats</span></div>
-                    <div class="nav-item" data-panel="leaderboard">${ICONS.leaderboard}<span>Top 10</span></div>
+                    <div class="nav-item" data-panel="leaderboard">${ICONS.leaderboard}<span>Top 20</span></div>
                     <div class="nav-item" data-panel="missions">${ICONS.missions}<span>Missions</span></div>
                     <div class="nav-item" data-panel="armory">${ICONS.armory}<span>Armory</span></div>
                     <div class="nav-item" data-panel="history">${ICONS.history}<span>History</span></div>
@@ -133,6 +135,10 @@ function _build() {
                         <span data-mute-label>${sound.muted ? 'Sound Off' : 'Sound On'}</span>
                     </button>
                 </div>
+                <button id="dash-guide-btn" class="dash-util-btn dash-guide-btn" type="button" title="How to Play">
+                    ${ICONS.guide}
+                    <span>How to Play</span>
+                </button>
             </aside>
 
             <!-- ── RIGHT PANEL ── -->
@@ -170,7 +176,7 @@ function _build() {
                 <!-- 2. Leaderboard panel -->
                 <div id="dash-panel-leaderboard" class="dash-panel">
                     <div class="dash-heading-row">
-                        <h2 class="dash-heading">Global Leaderboard (Top 10)</h2>
+                        <h2 class="dash-heading">Global Leaderboard (Top 20)</h2>
                         <button id="dash-lb-refresh" class="secondary-btn lb-refresh-btn" type="button">
                             ${ICONS.refresh}<span>Refresh</span>
                         </button>
@@ -209,6 +215,37 @@ function _build() {
                     <button id="dash-load-more" class="secondary-btn load-more-btn hidden">Load More</button>
                 </div>
             </main>
+        </div>
+
+        <!-- How to Play Guide Modal -->
+        <div id="dash-guide-modal" class="guide-modal hidden">
+            <div class="guide-modal-card glass-panel">
+                <div class="dash-heading-row" style="margin-bottom: 12px;">
+                    <h2 class="dash-heading" style="margin-bottom: 0;">How to Play</h2>
+                    <button id="dash-guide-close" class="secondary-btn lb-refresh-btn" type="button">Close</button>
+                </div>
+                <div class="guide-grid">
+                    <div class="guide-item">
+                        <div class="guide-item-title">Controls</div>
+                        <p class="guide-item-desc">Desktop: Arrow keys (← → ↑ ↓) to move, jump, and crouch. Mobile: On-screen touch buttons.</p>
+                    </div>
+                    <div class="guide-item">
+                        <div class="guide-item-title">Coins &amp; Shields</div>
+                        <p class="guide-item-desc">Coins refill your Energy bar. Every 10 coins in a run grants a protective Shield.</p>
+                    </div>
+                    <div class="guide-item">
+                        <div class="guide-item-title">Power-Ups &amp; Gems</div>
+                        <p class="guide-item-desc">Grab Magnet, Slow-Mo, and 2x Score boosts. Collect rare Gems to Revive if you crash.</p>
+                    </div>
+                    <div class="guide-item">
+                        <div class="guide-item-title">Worlds &amp; Missions</div>
+                        <p class="guide-item-desc">Unlock 4 Worlds with unique physics twists, complete Daily Missions, and equip skins in Armory.</p>
+                    </div>
+                </div>
+                <div class="guide-modal-actions">
+                    <button id="dash-replay-tut-btn" class="primary-btn" type="button">Replay Interactive Tutorial</button>
+                </div>
+            </div>
         </div>
     `;
 
@@ -274,6 +311,21 @@ function _bindDashEvents() {
 
     document.getElementById('dash-lb-refresh')?.addEventListener('click', () => {
         _loadLeaderboard();
+    });
+
+    document.getElementById('dash-guide-btn')?.addEventListener('click', () => {
+        document.getElementById('dash-guide-modal')?.classList.remove('hidden');
+    });
+
+    document.getElementById('dash-guide-close')?.addEventListener('click', () => {
+        document.getElementById('dash-guide-modal')?.classList.add('hidden');
+    });
+
+    document.getElementById('dash-replay-tut-btn')?.addEventListener('click', () => {
+        document.getElementById('dash-guide-modal')?.classList.add('hidden');
+        resetTutorial();
+        sound.ensureAudioContext();
+        if (_startGameCb) _startGameCb({ forceTutorial: true });
     });
 
     document.querySelectorAll('.nav-item').forEach(item => {
@@ -575,7 +627,7 @@ async function _loadLeaderboard() {
     list.innerHTML = '<div class="history-loading">Loading leaderboard…</div>';
 
     try {
-        const entries = await fetchLeaderboard(10);
+        const entries = await fetchLeaderboard(20);
         list.innerHTML = '';
 
         if (!entries.length) {

@@ -302,6 +302,23 @@
             </div>
         </div>
 
+        <!-- Interactive First-Run Tutorial Overlay -->
+        <div id="tutorial-overlay" class="overlay-screen hidden">
+            <button id="tut-skip-btn" class="tut-skip-btn secondary-btn" type="button">Skip Tutorial</button>
+            <div class="tut-card glass-panel">
+                <span id="tut-step-badge" class="tut-step-badge">STEP 1 OF 4</span>
+                <h3 id="tut-title" class="tut-title">Controls</h3>
+                <p id="tut-body" class="tut-body">Move left/right, jump onto platforms, and crouch to dodge!</p>
+                <div id="tut-keys-visual" class="tut-keys-visual hidden">
+                    <span class="tut-key">←</span>
+                    <span class="tut-key">→</span>
+                    <span class="tut-key">↑</span>
+                    <span class="tut-key">↓</span>
+                </div>
+                <button id="tut-next-btn" class="primary-btn tut-next-btn" type="button">Next</button>
+            </div>
+        </div>
+
         <!-- Pause Overlay (Esc / P / Space / Pause button) -->
         <div id="pause-overlay" class="hidden">
             <div class="pause-card glass-panel">

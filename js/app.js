@@ -69,7 +69,7 @@ async function _handleAuthChange(user) {
 }
 
 // ── Start Game ────────────────────────────────────────────────────────────────
-function _startGame() {
+function _startGame(extraOpts = {}) {
     const user = getCurrentUser();
     if (!user) {
         // Should never happen (button is only shown when authenticated)
@@ -93,7 +93,8 @@ function _startGame() {
         worldId:       getActiveWorldId(),
         currentStreak: getActiveStreak(),
         totalGems:     getActiveGems(),
-        skinId:        getActiveSkinId()
+        skinId:        getActiveSkinId(),
+        forceTutorial: Boolean(extraOpts?.forceTutorial)
     });
 }
 
