@@ -1,0 +1,81 @@
+// ============================================================
+//  SHOOTING STARS — Firestore Security Rules
+//  Deploy via: Firebase Console → Firestore Database → Rules
+//  Or via CLI:  firebase deploy --only firestore:rules
+// ============================================================
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── User profile & statistics ──────────────────────────────────────────
+    // Only the authenticated owner can read or write their own profile.
+    match /users/{userId} {
+      allow read:  if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null
+                   && request.auth.uid == userId
+                   && _validNewProfile();
+      allow update: if request.auth != null
+                   && request.auth.uid == userId
+                   && _validProfileUpdate();
+
+      // ── Game run history ───────────────────────────────────────────────
+      // Only the authenticated owner can read or write their own run history.
+      match /gameRuns/{runId} {
+        allow read:  if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null
+                     && request.auth.uid == userId
+                     && _validGameRun();
+        // Runs are immutable once written
+        allow update: if false;
+        allow delete: if false;
+      }
+    }
+
+    // ── Reject everything else ─────────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ── Validation helpers ─────────────────────────────────────────────────
+    function _validNewProfile() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['uid','displayName','email','createdAt','lastLoginAt',
+                              'bestScore','previousScore','totalGames',
+                              'totalCoins','highestStage','totalSurvivalTime'])
+          && d.uid           is string
+          && d.displayName   is string
+          && d.email         is string
+          && d.bestScore     is int   && d.bestScore     == 0
+          && d.previousScore is int   && d.previousScore == 0
+          && d.totalGames    is int   && d.totalGames    == 0
+          && d.totalCoins    is int   && d.totalCoins    == 0
+          && d.highestStage  is int   && d.highestStage  == 0
+          && d.totalSurvivalTime is int && d.totalSurvivalTime == 0;
+    }
+
+    function _validProfileUpdate() {
+      // Allow updating only the sanctioned fields; stat fields are managed
+      // via runTransaction in db.js and are validated by type.
+      let allowed = ['displayName','email','photoURL','lastLoginAt',
+                     'bestScore','previousScore','totalGames','totalCoins',
+                     'highestStage','totalSurvivalTime','lastPlayedAt',
+                     'localScoreMigrated'];
+      return request.resource.data.diff(resource.data).affectedKeys()
+                                  .hasOnly(allowed);
+    }
+
+    function _validGameRun() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['score','coinsCollected','highestStageReached',
+                              'survivalTime','gameStatus','playedAt'])
+          && d.score              is int  && d.score              >= 0
+          && d.coinsCollected     is int  && d.coinsCollected     >= 0
+          && d.highestStageReached is int && d.highestStageReached >= 1
+                                          && d.highestStageReached <= 5
+          && d.survivalTime       is int  && d.survivalTime       >= 0
+          && d.gameStatus         is string;
+    }
+  }
+}

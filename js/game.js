@@ -4,6 +4,10 @@
    responsive scaling, and state machine management.
    Integrates: energy system, shield protection, floating platforms,
    coin system with analytics, funny sounds.
+
+   Firebase upgrade: accepts optional { onGameOver } option so the
+   app orchestrator can save stats after each run.  Game mechanics
+   are 100% unchanged.
    ------------------------------------------------------------- */
 
 import { CONFIG } from './config.js';
@@ -18,6 +22,8 @@ import { CoinManager } from './coins.js';
 import { EnergyManager } from './energy.js';
 import { RageBaitCoinManager } from './rageBaitCoin.js';
 import { SpaceBackground } from './spaceBackground.js';
+import { saveGameRun } from './db.js';
+import { getCurrentUser } from './auth.js';
 
 export const GAME_STATE = {
     MENU: 0,
@@ -27,7 +33,12 @@ export const GAME_STATE = {
 };
 
 export class GameEngine {
-    constructor() {
+    /**
+     * @param {{ onGameOver?: function }} [options]
+     */
+    constructor(options = {}) {
+        this._onGameOverCb = options.onGameOver || null;
+
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
         this.container = document.getElementById('game-container');
@@ -46,11 +57,12 @@ export class GameEngine {
         this.rageBait = new RageBaitCoinManager();
         this.spaceBackground = new SpaceBackground(CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
 
-        this.cameraOffset = 0; // used for background parallax
+        this.cameraOffset = 0;
         this.introTimer = 0;
-        this.introDuration = 4; // seconds
-        this.rocketY = CONFIG.CANVAS_HEIGHT; // start off-screen
-        this.rocketSpeed = 250; // pixels per second
+        this.introDuration = 4;
+        this.rocketY = CONFIG.CANVAS_HEIGHT;
+        this.rocketSpeed = 250;
+
         // Input State
         this.keys = {
             left: false,
@@ -69,6 +81,9 @@ export class GameEngine {
         this.pauseMessageVisible = false;
         this.pauseMessageTimer = 0;
         this.pauseOverlay = document.getElementById('pause-overlay');
+
+        // Prevent duplicate game-run saves
+        this._runSaved = false;
 
         this.initCanvasScale();
         this.bindEvents();
@@ -105,7 +120,6 @@ export class GameEngine {
                 document.getElementById('audio-icon').textContent = isMuted ? '🔇' : '🔊';
             }
 
-            // Space bar: toggle pause during active gameplay only
             if (e.code === 'Space' && this.state === GAME_STATE.PLAYING) {
                 this._togglePause();
                 return;
@@ -146,42 +160,34 @@ export class GameEngine {
 
     showMenu() {
         this.state = GAME_STATE.MENU;
-        this._resumeFromPause(/* silent */ true); // clear any leftover pause state
+        this._resumeFromPause(true);
         this.rageBait.reset(sound);
         this.ui.showStartScreen();
     }
 
-    /** Toggle pause on/off. Called only while PLAYING. */
     _togglePause() {
         if (!this.isPaused) {
-            // Pause the game
             this.isPaused = true;
-            // Clear held keys so player doesn't drift on resume
             this.keys = { left: false, right: false, jump: false, down: false };
-            // Show overlay message
             this._showPauseMessage();
         } else {
-            // Resume the game
             this._resumeFromPause();
         }
     }
 
-    /** Show the PAUSED overlay and hide the message after 2 seconds. */
     _showPauseMessage() {
         if (!this.pauseOverlay) return;
         this.pauseOverlay.classList.remove('hidden');
         this.pauseMessageVisible = true;
-        this.pauseMessageTimer = 2; // seconds
+        this.pauseMessageTimer = 2;
     }
 
-    /** Hide just the overlay message (game remains paused). */
     _hidePauseMessage() {
         if (!this.pauseOverlay) return;
         this.pauseOverlay.classList.add('hidden');
         this.pauseMessageVisible = false;
     }
 
-    /** Resume gameplay and clear all pause state. */
     _resumeFromPause(silent = false) {
         this.isPaused = false;
         this.pauseMessageVisible = false;
@@ -191,7 +197,8 @@ export class GameEngine {
 
     startGame() {
         this.score = 0;
-        this._resumeFromPause(true); // ensure no stale pause from prior session
+        this._runSaved = false; // reset save guard for new run
+        this._resumeFromPause(true);
         this.particles.reset();
         this.player.reset();
         this.platform.reset();
@@ -202,12 +209,11 @@ export class GameEngine {
         this.energy.reset();
         this.keys = { left: false, right: false, jump: false, down: false };
 
-        // Begin cinematic intro before gameplay
         this.state = GAME_STATE.INTRO;
         this.introTimer = 0;
-        this.rocketY = CONFIG.CANVAS_HEIGHT; // start below canvas
+        this.rocketY = CONFIG.CANVAS_HEIGHT;
         this.cameraOffset = 0;
-        this.ui.showStartScreen(); // keep menu visible until intro ends
+        this.ui.showStartScreen();
     }
 
     gameOver(reason) {
@@ -227,19 +233,76 @@ export class GameEngine {
             1.5
         );
 
+        // Capture stats before the async save so they're consistent
+        const finalScore       = Math.floor(this.score);
+        const survivalTime     = this.difficulty.survivalTime;
+        const stageLevel       = this.difficulty.currentStage.LEVEL;
+        const stageName        = this.difficulty.currentStage.NAME;
+        const totalCoins       = this.coins.totalCollected;
+        const intervalCoins    = [...this.energy.intervalCoins];
+        const shieldCharges    = this.energy.shieldCharges;
+        const shieldsGranted   = this.energy.milestonesGranted.size;
+
         setTimeout(() => {
             this.ui.showGameOver(
-                Math.floor(this.score),
-                this.difficulty.survivalTime,
-                this.difficulty.currentStage.NAME,
-                this.difficulty.currentStage.LEVEL,
+                finalScore,
+                survivalTime,
+                stageName,
+                stageLevel,
                 this.deathCause,
-                this.coins.totalCollected,
-                this.energy.intervalCoins,
-                this.energy.shieldCharges,
-                this.energy.milestonesGranted.size  // shields used = milestones granted
+                totalCoins,
+                intervalCoins,
+                shieldCharges,
+                shieldsGranted
             );
         }, 400);
+
+        // ── Firebase: save run once ───────────────────────────────────────────
+        if (!this._runSaved) {
+            this._runSaved = true;
+            this._persistRun({
+                score:               finalScore,
+                coinsCollected:      totalCoins,
+                highestStageReached: stageLevel,
+                highestStageName:    stageName,
+                survivalTime:        Math.round(survivalTime),
+                stageWiseCoinAnalytics: intervalCoins,
+                gameStatus:          'completed'
+            });
+        }
+    }
+
+    /** Saves run to Firestore. Silently ignores failures (non-game-breaking). */
+    async _persistRun(runData) {
+        try {
+            const user = getCurrentUser();
+            if (!user) return; // No authenticated user; skip silently
+
+            const { isNewBest } = await saveGameRun(user.uid, runData);
+
+            // Update the HUD "BEST" value if we set a new record
+            if (isNewBest) {
+                this.ui.highScore = runData.score;
+                this.ui.updateBestScoreDisplays();
+            }
+
+            // Notify the app orchestrator so it can refresh the dashboard
+            if (this._onGameOverCb) {
+                this._onGameOverCb(runData);
+            }
+        } catch (err) {
+            console.error('[GameEngine] Failed to save run to Firestore:', err.message);
+            // Show a non-intrusive toast so the player knows
+            this._showSaveError();
+        }
+    }
+
+    _showSaveError() {
+        const toast = document.createElement('div');
+        toast.className = 'save-error-toast';
+        toast.textContent = '⚠ Could not save game result. Check your connection.';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 5000);
     }
 
     startLoop() {
@@ -257,7 +320,6 @@ export class GameEngine {
     }
 
     update(dt) {
-        // ── Pause message countdown (message hides after 2s; game stays paused) ──
         if (this.isPaused && this.pauseMessageVisible) {
             this.pauseMessageTimer -= dt;
             if (this.pauseMessageTimer <= 0) {
@@ -265,7 +327,6 @@ export class GameEngine {
             }
         }
 
-        // While paused, only update the decorative space background; freeze everything else
         if (this.isPaused) {
             this.spaceBackground.update(dt);
             return;
@@ -273,38 +334,29 @@ export class GameEngine {
 
         this.spaceBackground.update(dt);
 
-        // Intro cinematic sequence
         if (this.state === GAME_STATE.INTRO) {
             this.introTimer += dt;
             this.rocketY -= this.rocketSpeed * dt;
-            // Simple camera follow the rocket while it ascends
             this.cameraOffset = Math.max(0, this.rocketY - CONFIG.CANVAS_HEIGHT / 2);
             if (this.introTimer >= this.introDuration) {
-                // Transition to PLAYING state
                 this.state = GAME_STATE.PLAYING;
                 this.ui.showHUD();
                 this.cameraOffset = 0;
-                // Ensure background region matches the first stage
                 const regionMap = ['earth','mars','jupiter','nebula','blackhole'];
                 this.spaceBackground.setRegion(regionMap[this.difficulty.currentStageIndex] || 'earth');
             }
-            return; // Skip gameplay updates during intro
+            return;
         }
 
         if (this.state === GAME_STATE.PLAYING) {
-            // 1. Update Energy (drain + smooth physics multipliers)
             this.energy.update(dt);
-
-            // 2. Update Player (now receives energy manager for speed/jump scaling)
             this.player.update(this.keys, this.platform, this.floatingPlatforms, sound, this.energy);
 
-            // Check if player fell into a gap past the ground
             if (this.player.y > CONFIG.GROUND_Y + 100) {
                 this.gameOver("Fell into the broken abyss!");
                 return;
             }
 
-            // 3. Update Floating Platforms
             this.floatingPlatforms.update(
                 dt,
                 this.difficulty.survivalTime,
@@ -313,25 +365,20 @@ export class GameEngine {
                 this.coins
             );
 
-            // 4. Update Difficulty & Hazards
             this.difficulty.update(dt, this.particles, this.platform, sound);
 
             if (this.difficulty.levelJustChanged) {
                 this.ui.triggerLevelBanner(this.difficulty.currentStage);
-                // Update background region to match new stage
                 const regionMap = ['earth','mars','jupiter','nebula','blackhole'];
                 this.spaceBackground.setRegion(regionMap[this.difficulty.currentStageIndex] || 'earth');
             }
 
-            // 5. Update Score
             const scoreMultiplier = 1 + (this.difficulty.currentStageIndex * 0.5);
             this.score += dt * 100 * scoreMultiplier;
 
-            // 6. Update Coins (level-based scheduling + animation)
             const intervalIndex = Math.min(4, Math.floor(this.difficulty.survivalTime / 30));
             this.coins.update(dt, this.difficulty.survivalTime, this.platform, this.floatingPlatforms);
 
-            // 7. Coin Collection Detection
             const playerHitbox = this.player.getHitbox();
             const coinResult = this.coins.checkPlayerCollection(
                 playerHitbox,
@@ -343,7 +390,6 @@ export class GameEngine {
                 this.score += coinResult.score;
             }
 
-            // 8. Update and collect the special coin through normal coin rewards.
             this.rageBait.update(
                 dt,
                 this.difficulty.survivalTime,
@@ -365,29 +411,23 @@ export class GameEngine {
             );
             this.score += rageBaitResult.score;
 
-            // 9. Hazard Collision Detection (with shield protection)
             for (let hazard of this.difficulty.hazards) {
                 const hazardHitbox = hazard.getHitbox();
 
                 if (this.checkCollision(playerHitbox, hazardHitbox)) {
-                    // Check if shield can block this hit
                     if (this.energy.shieldActive) {
-                        // Shield absorbs the hit — do nothing (still invulnerable)
                         continue;
                     }
 
-                    // Check proximity for auto-activation
                     const closeness = this._hazardProximity(playerHitbox, hazardHitbox);
                     if (closeness <= CONFIG.SHIELD.TRIGGER_MARGIN && !this.energy.shieldActive) {
                         this.energy.tryActivateShield();
                     }
 
-                    // If shield just activated, this hit is blocked
                     if (this.energy.shieldActive) {
                         continue;
                     }
 
-                    // No shield — die
                     let name = "a falling hazard";
                     if (hazard.constructor.name === 'ShootingStar') name = "a Shooting Star";
                     if (hazard.constructor.name === 'Hailstone')    name = "a Hailstone";
@@ -397,7 +437,6 @@ export class GameEngine {
                     this.gameOver(`Crushed by ${name}!`);
                     return;
                 } else {
-                    // Pre-emptive shield trigger: if hazard is very close, activate before collision
                     const closeness = this._hazardProximity(playerHitbox, hazardHitbox);
                     if (closeness <= CONFIG.SHIELD.TRIGGER_MARGIN && !this.energy.shieldActive && this.energy.shieldCharges > 0) {
                         this.energy.tryActivateShield();
@@ -407,7 +446,6 @@ export class GameEngine {
                 }
             }
 
-            // 9. Update HUD
             this.ui.updateHUD(
                 this.score,
                 this.difficulty.survivalTime,
@@ -424,7 +462,6 @@ export class GameEngine {
         }
     }
 
-    /** Returns shortest distance from hazard centre to player hitbox edge */
     _hazardProximity(playerHB, hazardHB) {
         const px = playerHB.x + playerHB.width  / 2;
         const py = playerHB.y + playerHB.height / 2;
@@ -443,16 +480,13 @@ export class GameEngine {
     }
 
     draw() {
-        // Draw background with camera offset for parallax effect
         this.spaceBackground.draw(this.ctx, this.cameraOffset);
 
-        // Render intro rocket if in INTRO state
         if (this.state === GAME_STATE.INTRO) {
             const ctx = this.ctx;
             ctx.save();
             const rocketX = CONFIG.CANVAS_WIDTH / 2;
             const rocketY = this.rocketY;
-            // Rocket body
             ctx.fillStyle = '#ffdd33';
             ctx.beginPath();
             ctx.moveTo(rocketX - 12, rocketY);
@@ -460,7 +494,6 @@ export class GameEngine {
             ctx.lineTo(rocketX, rocketY - 30);
             ctx.closePath();
             ctx.fill();
-            // Exhaust plume
             ctx.globalAlpha = 0.6;
             const plumeHeight = 20 + Math.random() * 8;
             const plumeGrad = ctx.createLinearGradient(rocketX, rocketY, rocketX, rocketY + plumeHeight);

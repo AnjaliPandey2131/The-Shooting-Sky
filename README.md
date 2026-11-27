@@ -1,138 +1,265 @@
-# Shooting Stars — 2D Arcade Survival Game
+# Shooting Stars — Online Gaming Platform
 
-**Shooting Stars** is a browser-based arcade survival game. Guide a stickman across a fragile platform, dodge falling celestial hazards, and collect coins to restore energy and earn shields. Survive as the hazards intensify through five stages.
+**Shooting Stars** is a browser-based arcade survival game upgraded into a **Google-authenticated online gaming platform** with cloud-based player statistics, a personal dashboard, and persistent game history powered by Firebase.
+
+---
 
 ## Overview
 
-Move left and right, jump between the ground and floating platforms, and crouch to avoid danger. Falling stars, hailstones, asteroids, fireballs, and meteor waves become more frequent and varied as the run progresses. In later stages, impacts can crack and collapse sections of the ground.
+Guide a stickman across a fragile platform, dodge falling celestial hazards, collect coins to restore energy, and survive as the cosmos intensifies through five stages.
 
-Coins appear on the ground and floating platforms. Each collected coin adds score, restores energy, and advances the run's shield milestones. Energy drains while playing and gradually affects movement and jump strength. A shield charge can automatically protect the player when a hazard gets close.
+After this upgrade, the game requires **Google Sign-In** to play. Each player gets a personal dashboard with their cloud statistics and game history.
 
-## Features
+---
 
-- Canvas-rendered stickman movement, jumping, crouching, and procedural animation.
-- Falling hazards, near-miss effects, meteor-wave warnings, and progressively faster stage pacing.
-- Horizontal- and vertical-moving floating platforms, plus ground sections that can crack and collapse.
-- Scheduled collectible coins, energy management, and automatic shield protection.
-- Survival score, persistent local high score, coin totals, and a game‑over coin‑per‑stage chart.
-- Procedural sound effects using the Web Audio API, particle effects, and responsive HUD/menu screens.
-- The optional‑speech Rage Bait Coin encounter described below.
+## New Features (Firebase Upgrade)
 
-## Rage Bait Coin
-
-The Rage Bait Coin is a mischievous golden character drawn directly on the game canvas. Its animated face, arms, and legs change expression as the player approaches. Its body has a fixed collision area; the close‑range visual dodge is limited to four pixels.
-
-An encounter appears only on an existing, reachable, horizontal‑moving platform—not on the base ground. The platform is checked against the player's current energy‑adjusted jump and movement physics, and the coin follows it while it moves. The entrance takes **0.55 seconds**; once it finishes, the player has **eight active seconds** to collect the coin. The encounter includes a countdown ring, sparkles, taunts, and reactions to a close approach.
-
-Each stage targets one or two appearances. The first is scheduled **4–8 seconds** into the stage. An optional second is scheduled **18–22 seconds** into stages 1–4, or **24–32 seconds** into stage 5. If no suitable reachable platform is available, the encounter retries after one second and may be skipped if the stage ends first. At most one encounter is active at a time.
-
-- **Collected in time:** the coin gives the same reward as an ordinary coin: 50 points, 5 % energy (up to the 100 % cap), coin/analytics credit, and progress toward the run's shield milestones. This feature adds no bonus score by default.
-- **Not collected:** the coin escapes after the timer expires, with no coin, score, energy, or shield reward. A collapsing or disappearing platform also ends the encounter without a collection reward.
-- **Audio:** short dialogue uses the browser's Web Speech API when available. Synthesized Web Audio tones are the fallback. Browser voices, audio permissions, and sound output vary; mute with `M` or the HUD sound button.
-
-## Controls
-
-| Action | Control |
+| Feature | Details |
 |---|---|
-| Move left | `←` Left Arrow |
-| Move right | `→` Right Arrow |
-| Jump | `↑` Up Arrow |
-| Crouch | `↓` Down Arrow |
-| Mute / unmute | `M` or click the HUD sound button |
+| **Google Authentication** | Sign in with your Google account; session persists across refreshes |
+| **Personal Dashboard** | Best score, last score, games played, coins, highest stage, total playtime |
+| **Cloud Game History** | Every completed run is stored in Firestore, sorted newest first |
+| **Firestore Security** | Per-user read/write isolation enforced server-side |
+| **Local Score Migration** | Existing localStorage high score imported once to the cloud |
+| **Back to Dashboard** | "📊 DASHBOARD" button on game-over screen |
 
-## Stages
+---
 
-Stages advance with survival time. Each stage lasts 30 seconds except stage 5, which continues indefinitely.
-
-| Stage | Time | Hazards and changes |
-|---|---|---|
-| 1 — Calm Sky | 0–30 seconds | Shooting stars |
-| 2 — Meteor Shower | 30–60 seconds | Shooting stars and hailstones |
-| 3 — Asteroid Storm | 60–90 seconds | Stars, hailstones, asteroids; ground can crack |
-| 4 — Breaking World | 90–120 seconds | Adds fireballs and meteor waves; ground can collapse |
-| 5 — Ultimate Survival | 120 seconds onward | All hazard types at the highest configured spawn rate |
-
-## Technologies
-
-- HTML5 and the Canvas 2D API
-- CSS3
-- Vanilla JavaScript using native ES modules; no JavaScript package manager or third‑party runtime library is required
-- Browser APIs: Web Audio, optional Web Speech, `requestAnimationFrame`, and `localStorage`
-- Google Fonts (Orbitron, Press Start 2P, and Outfit) are linked from Google Fonts; system fallbacks are used if those fonts are unavailable
-
-## Project structure
+## Project Structure
 
 ```text
 .
-├── index.html
-├── style.css
+├── index.html              # App shell (game container hidden until auth)
+├── style.css               # All styles incl. login & dashboard
+├── firestore.rules         # Firestore security rules (deploy to Firebase)
+├── vercel.json             # Vercel SPA routing config
+├── .env.example            # Firebase config template
 ├── README.md
 └── js/
-    ├── main.js               # Entry point and game loop startup
-    ├── game.js               # Game state, input, update loop, collisions
-    ├── config.js             # Physics, stages, hazards, and feature tuning
-    ├── player.js             # Player movement, physics, and drawing
-    ├── platform.js           # Ground segments and deterioration
-    ├── floatingPlatforms.js  # Moving platforms and platform states
-    ├── hazards.js            # Falling hazards and meteor warnings
-    ├── coins.js              # Coin scheduling, collection, and rewards
-    ├── energy.js             # Energy, shield milestones, and analytics
-    ├── rageBaitCoin.js       # Timed special‑coin encounter
-    ├── difficulty.js         # Stage progression and hazard scheduling
-    ├── spaceBackground.js   # Procedural animated parallax scenery
-    ├── particles.js          # Particle and visual effects
-    ├── audio.js              # Procedural sound and optional speech
-    └── ui.js                 # HUD, menus, scores, and analytics chart
+    ├── main.js             # Entry point → bootApp()
+    ├── app.js              # App orchestrator (auth → dashboard → game)
+    ├── firebase.js         # Firebase initialisation (fill in your config)
+    ├── auth.js             # Google Sign-In / Sign-Out / onAuthStateChanged
+    ├── db.js               # Firestore helpers (profile, runs, migration)
+    ├── login.js            # Login screen UI module
+    ├── dashboard.js        # Dashboard UI module
+    ├── game.js             # Game engine (original + Firebase save hook)
+    ├── config.js           # Physics, stages, hazards, feature tuning
+    ├── player.js           # Player movement, physics, drawing
+    ├── platform.js         # Ground segments and deterioration
+    ├── floatingPlatforms.js# Moving platforms
+    ├── hazards.js          # Falling hazards and meteor warnings
+    ├── coins.js            # Coin scheduling, collection, and rewards
+    ├── energy.js           # Energy, shield milestones, and analytics
+    ├── rageBaitCoin.js     # Timed special-coin encounter
+    ├── difficulty.js       # Stage progression and hazard scheduling
+    ├── spaceBackground.js  # Procedural animated parallax scenery
+    ├── particles.js        # Particle and visual effects
+    ├── audio.js            # Procedural sound and optional speech
+    └── ui.js               # HUD, menus, scores, and analytics chart
 ```
 
-## Prerequisites
+---
 
-- A modern browser with JavaScript modules and Canvas 2D support.
-- Python 3 to use the built‑in local web server, or Visual Studio Code with a Live Server extension.
-- Internet access is optional; it is needed only to fetch the linked Google Fonts. Browser audio and speech support vary.
+## Firestore Data Model
 
-## Run locally
+```
+users/{uid}
+  ├── uid, displayName, email, photoURL
+  ├── createdAt, lastLoginAt, lastPlayedAt
+  ├── bestScore, previousScore
+  ├── totalGames, totalCoins, highestStage, totalSurvivalTime
+  └── localScoreMigrated
 
-Clone the confirmed repository and start a static HTTP server from its folder:
+users/{uid}/gameRuns/{runId}
+  ├── score, coinsCollected, highestStageReached, highestStageName
+  ├── survivalTime, stageWiseCoinAnalytics
+  ├── gameStatus, playedAt
+```
+
+---
+
+## Setup — Step by Step
+
+### 1. Create a Firebase Project
+
+1. Go to [Firebase Console](https://console.firebase.google.com/).
+2. Click **Add project** and follow the wizard (Analytics is optional).
+3. Click **Add app → Web (</>)** and register the app.
+4. Copy the `firebaseConfig` object shown.
+
+### 2. Configure js/firebase.js
+
+Open [`js/firebase.js`](js/firebase.js) and replace every `REPLACE_WITH_…` placeholder with the values from the Firebase Console:
+
+```js
+const firebaseConfig = {
+    apiKey:            "YOUR_API_KEY",
+    authDomain:        "YOUR_PROJECT.firebaseapp.com",
+    projectId:         "YOUR_PROJECT_ID",
+    storageBucket:     "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId:             "YOUR_APP_ID"
+};
+```
+
+> **Note:** These are **public** web config values. They are intentionally safe to include in browser code. Never add Admin SDK or service-account private keys to this file.
+
+### 3. Enable Google Authentication
+
+1. Firebase Console → **Authentication → Sign-in method**.
+2. Enable **Google**.
+3. Add your Vercel domain (e.g. `shooting-stars.vercel.app`) to **Authorised domains**.
+4. `localhost` is authorised by default for local development.
+
+### 4. Create Firestore Database
+
+1. Firebase Console → **Firestore Database → Create database**.
+2. Choose **Production mode** (we publish strict security rules).
+3. Select your preferred region (e.g. `asia-south1` for India).
+
+### 5. Publish Firestore Security Rules
+
+Paste the contents of [`firestore.rules`](firestore.rules) into:  
+Firebase Console → **Firestore Database → Rules → Edit rules → Publish**
+
+Or deploy via CLI:
+```bash
+npm install -g firebase-tools
+firebase login
+firebase init firestore   # select your project; use firestore.rules
+firebase deploy --only firestore:rules
+```
+
+### 6. Add Authorised Domain for Production
+
+After deploying to Vercel:  
+Firebase Console → **Authentication → Settings → Authorised domains → Add domain**  
+Add your Vercel URL, e.g. `shooting-stars.vercel.app`.
+
+---
+
+## Run Locally
+
+No package manager required. Use any static HTTP server:
 
 ```powershell
-git clone https://github.com/AnjaliPandey2131/The-Shooting-Sky.git
-cd The-Shooting-Sky
+# Python
 python -m http.server 8000
+
+# Node (npx)
+npx serve .
 ```
 
-Then open <http://localhost:8000> in a browser. Keep the terminal open while playing; press `Ctrl+C` to stop the server. If `python` is not available as a command on Windows, try `py -m http.server 8000`.
+Then open `http://localhost:8000`. Do **not** open `index.html` as a `file:` URL — ES modules require an HTTP server.
 
-Alternatively, open the project folder in VS Code and serve `index.html` with the Live Server extension. Do not open the page directly as a `file:` URL; ES modules require a local web server.
+---
 
-## How to play
+## Deploy on Vercel
 
-Stay alive by moving, jumping, and crouching to avoid hazards. Use floating platforms to navigate above danger and collapsing ground. Collect coins to gain 50 points and restore 5 % energy. Energy drains over time; collecting ten coins during a run earns a shield charge. Shields activate automatically near a hazard and protect the player for five seconds. Survival also contributes to the score, and later stages increase the score multiplier.
+### Option A — Vercel Dashboard
 
-## Screenshots and demo
+1. Push the project to GitHub.
+2. Go to [vercel.com](https://vercel.com) → **New Project → Import from GitHub**.
+3. Select the repository.
+4. Framework preset: **Other** (static site).
+5. No build command needed; output directory: `.` (or leave empty).
+6. Click **Deploy**.
 
-No screenshots, gameplay GIFs, or hosted demo are included in this repository yet. Gameplay images can be added under an `assets/` directory and linked here once committed.
+### Option B — Vercel CLI
 
-The game canvas has a procedural animated space background with slowly drifting nebulae and planets, layered star and particle movement, and occasional subtle streaks. It uses the existing canvas animation loop and does not affect gameplay collisions or input.
+```bash
+npm install -g vercel
+vercel login
+vercel --prod
+```
 
-## Testing and known limitations
+`vercel.json` already includes a rewrite rule so all routes resolve to `index.html`.
 
-There is no automated test suite or package‑based test command configured in the repository. Browser checks performed during development covered Rage Bait platform selection/reachability, its entrance and eight‑second timer, one‑time reactions and rewards, expiration without rewards, collapsing‑platform invalidation, and a local gameplay smoke run. The game page loaded and advanced without browser page or console errors in that smoke run. Actual audible speech output was not independently verified.
+### After Deployment
 
-- The game has no dedicated pause state; encounter timers advance with active gameplay updates.
-- The Rage Bait Coin can be skipped when no reachable horizontal‑moving platform is available before the stage ends.
-- Web Speech and audio behavior depend on browser support, available voices, and audio permissions.
-- Google Fonts require a network connection; local fallback fonts remain available.
+1. Copy the Vercel production URL (e.g. `https://shooting-stars.vercel.app`).
+2. Add it to Firebase → **Authentication → Authorised domains**.
+3. Test Google Sign-In on the live HTTPS URL.
 
-## Project purpose
+---
 
-This repository contains a personal game‑development project: an arcade survival game built with browser‑native technologies.
+## Controls
 
-## License
+| Action | Key |
+|---|---|
+| Move left | ← Left Arrow |
+| Move right | → Right Arrow |
+| Jump | ↑ Up Arrow |
+| Crouch | ↓ Down Arrow |
+| Pause / Resume | Space |
+| Mute / Unmute | M or 🔊 button |
 
-No `LICENSE` file or explicit project license is present. The project should not be assumed to be MIT‑licensed; no reuse permissions have been granted by this README.
+---
+
+## Stages
+
+| Stage | Time | Hazards |
+|---|---|---|
+| 1 — Calm Sky | 0–30 s | Shooting stars |
+| 2 — Meteor Shower | 30–60 s | Stars, hailstones |
+| 3 — Asteroid Storm | 60–90 s | Stars, hailstones, asteroids; ground cracks |
+| 4 — Breaking World | 90–120 s | Adds fireballs, meteor waves; ground collapses |
+| 5 — Ultimate Survival | 120 s+ | All hazards at maximum intensity |
+
+---
+
+## Security Notes
+
+- Firestore rules enforce per-user isolation using `request.auth.uid`.
+- No server secrets or Admin SDK credentials are present in browser code.
+- The `localScoreMigrated` flag ensures the localStorage score is imported exactly once per account.
+- Client-side validation alone is not a security mechanism; all critical rules are enforced server-side by Firestore.
+- For anti-cheat protection of score submissions in the future, a Cloud Function (trusted backend) would be needed.
+
+---
+
+## Technologies
+
+- HTML5, CSS3, Canvas 2D API
+- Vanilla JavaScript with native ES modules (no build system required)
+- Firebase Authentication (Google Sign-In)
+- Cloud Firestore
+- Firebase JavaScript Modular SDK v10 (loaded from CDN)
+- Web Audio API, optional Web Speech API
+- Google Fonts (Orbitron, Press Start 2P, Outfit)
+- Vercel (static hosting)
+
+---
 
 ## Changelog
 
-- Added energy‑scaled movement, collectible coins, shield milestones, moving platforms, stage analytics, and the animated Rage Bait Coin encounter.
-- Updated the special coin to use a reachable moving‑platform spawn, a 0.55‑second entrance, an eight‑second collection window, and speech with synthesized audio fallback.
+**v2.0.0 — Firebase Upgrade**
+- Added Google Authentication (signInWithPopup + redirect fallback).
+- Added personal player dashboard with Firestore statistics.
+- Added game run persistence: score, coins, stage, survival time saved per run.
+- Added game history panel (10 runs per page, paginated).
+- Added localStorage high-score migration (runs once per account).
+- Added "📊 DASHBOARD" button on game-over screen.
+- Added Firestore security rules (per-user isolation).
+- Added vercel.json for SPA deployment.
+- Added `.env.example` for Firebase config documentation.
+- Updated `main.js`, `game.js`, `index.html`, `style.css`.
+- **All original game mechanics, physics, hazards, coins, energy, shield, and Rage Bait Coin are fully preserved.**
+
+**v1.x — Original Game**
+- Canvas-rendered stickman survival arcade.
+- Energy system, shield milestones, moving platforms.
+- Five stages, all hazard types, Rage Bait Coin encounter.
+- Procedural sound and particle effects.
+- LocalStorage high score.
+
+---
+
+## License
+
+No explicit license is currently assigned. No reuse permissions are granted by this README.
+
+---
+
+*Developed by Anjali Pandey*

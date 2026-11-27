@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SHOOTING STARS — 2D Survival Arcade</title>
-    <meta name="description" content="Shooting Stars: a fast-paced 2D survival arcade game. Dodge meteors, jump on moving platforms and collect glowing coins to restore energy!">
+    <meta name="description" content="Shooting Stars: a fast-paced 2D survival arcade game. Sign in with Google, dodge meteors, jump on moving platforms and collect glowing coins to restore energy!">
     <!-- Google Fonts for Arcade & Clean Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,7 +12,8 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="game-container">
+    <!-- ── Game Container (hidden until authenticated & Start Game clicked) ── -->
+    <div id="game-container" style="display:none">
         <!-- Canvas Layer -->
         <canvas id="gameCanvas"></canvas>
 
@@ -264,6 +265,9 @@
                     </button>
                     <button id="main-menu-btn" class="secondary-btn">
                         <span>MAIN MENU</span>
+                    </button>
+                    <button id="dashboard-btn" class="secondary-btn dashboard-return-btn">
+                        <span>📊 DASHBOARD</span>
                     </button>
                 </div>
             </div>
