@@ -64,6 +64,12 @@ export class GameEngine {
         this.lastFrameTime = 0;
         this.deathCause = "";
 
+        // Pause state
+        this.isPaused = false;
+        this.pauseMessageVisible = false;
+        this.pauseMessageTimer = 0;
+        this.pauseOverlay = document.getElementById('pause-overlay');
+
         this.initCanvasScale();
         this.bindEvents();
         this.showMenu();
@@ -90,7 +96,7 @@ export class GameEngine {
 
     bindEvents() {
         window.addEventListener('keydown', (e) => {
-            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
                 e.preventDefault();
             }
 
@@ -99,7 +105,13 @@ export class GameEngine {
                 document.getElementById('audio-icon').textContent = isMuted ? '🔇' : '🔊';
             }
 
-            if (this.state === GAME_STATE.PLAYING) {
+            // Space bar: toggle pause during active gameplay only
+            if (e.code === 'Space' && this.state === GAME_STATE.PLAYING) {
+                this._togglePause();
+                return;
+            }
+
+            if (this.state === GAME_STATE.PLAYING && !this.isPaused) {
                 if (e.code === 'ArrowLeft')  this.keys.left  = true;
                 if (e.code === 'ArrowRight') this.keys.right = true;
                 if (e.code === 'ArrowUp')    this.keys.jump  = true;
@@ -108,7 +120,7 @@ export class GameEngine {
         });
 
         window.addEventListener('keyup', (e) => {
-            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
                 e.preventDefault();
             }
             if (e.code === 'ArrowLeft')  this.keys.left  = false;
@@ -134,12 +146,52 @@ export class GameEngine {
 
     showMenu() {
         this.state = GAME_STATE.MENU;
+        this._resumeFromPause(/* silent */ true); // clear any leftover pause state
         this.rageBait.reset(sound);
         this.ui.showStartScreen();
     }
 
+    /** Toggle pause on/off. Called only while PLAYING. */
+    _togglePause() {
+        if (!this.isPaused) {
+            // Pause the game
+            this.isPaused = true;
+            // Clear held keys so player doesn't drift on resume
+            this.keys = { left: false, right: false, jump: false, down: false };
+            // Show overlay message
+            this._showPauseMessage();
+        } else {
+            // Resume the game
+            this._resumeFromPause();
+        }
+    }
+
+    /** Show the PAUSED overlay and hide the message after 2 seconds. */
+    _showPauseMessage() {
+        if (!this.pauseOverlay) return;
+        this.pauseOverlay.classList.remove('hidden');
+        this.pauseMessageVisible = true;
+        this.pauseMessageTimer = 2; // seconds
+    }
+
+    /** Hide just the overlay message (game remains paused). */
+    _hidePauseMessage() {
+        if (!this.pauseOverlay) return;
+        this.pauseOverlay.classList.add('hidden');
+        this.pauseMessageVisible = false;
+    }
+
+    /** Resume gameplay and clear all pause state. */
+    _resumeFromPause(silent = false) {
+        this.isPaused = false;
+        this.pauseMessageVisible = false;
+        this.pauseMessageTimer = 0;
+        if (this.pauseOverlay) this.pauseOverlay.classList.add('hidden');
+    }
+
     startGame() {
         this.score = 0;
+        this._resumeFromPause(true); // ensure no stale pause from prior session
         this.particles.reset();
         this.player.reset();
         this.platform.reset();
@@ -205,6 +257,20 @@ export class GameEngine {
     }
 
     update(dt) {
+        // ── Pause message countdown (message hides after 2s; game stays paused) ──
+        if (this.isPaused && this.pauseMessageVisible) {
+            this.pauseMessageTimer -= dt;
+            if (this.pauseMessageTimer <= 0) {
+                this._hidePauseMessage();
+            }
+        }
+
+        // While paused, only update the decorative space background; freeze everything else
+        if (this.isPaused) {
+            this.spaceBackground.update(dt);
+            return;
+        }
+
         this.spaceBackground.update(dt);
 
         // Intro cinematic sequence
