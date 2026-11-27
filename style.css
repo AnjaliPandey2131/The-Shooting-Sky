@@ -1516,44 +1516,144 @@ canvas {
    RESPONSIVE — dashboard collapses to single column
 ───────────────────────────────────────────────────────────── */
 @media (max-width: 860px) {
+    #dashboard-screen {
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
     .dash-layout {
         grid-template-columns: 1fr;
         grid-template-rows: auto 1fr;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
     }
 
     .dash-sidebar {
-        flex-direction: row;
-        flex-wrap: wrap;
-        align-items: center;
-        padding: 16px;
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+        padding: 14px 14px 12px;
         border-right: none;
-        border-bottom: 1px solid rgba(0,240,255,0.1);
-        gap: 12px;
+        border-bottom: 1px solid rgba(0,240,255,0.12);
+        gap: 10px;
+        box-sizing: border-box;
+        overflow: visible;
     }
 
     .profile-section {
         flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
         text-align: left;
-        border-bottom: none;
-        padding-bottom: 0;
+        width: 100%;
+        gap: 10px;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        padding-bottom: 10px;
+    }
+
+    .profile-avatar {
+        width: 44px;
+        height: 44px;
+        flex-shrink: 0;
+    }
+
+    .profile-info {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .profile-name,
+    .profile-email {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
+
+    .logout-btn {
+        flex-shrink: 0;
+        margin-top: 0;
+        padding: 6px 11px;
+        font-size: 0.72rem;
+        white-space: nowrap;
+    }
+
+    .dash-start-btn {
+        width: 100%;
+        padding: 12px;
+        font-size: 0.9rem;
     }
 
     .dash-nav {
-        flex-direction: row;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 4px;
+        width: 100%;
+        padding: 4px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.05);
+    }
+
+    .nav-item {
+        text-align: center;
+        padding: 8px 4px;
+        font-size: 0.72rem;
+        border-radius: 8px;
+        border-left: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .nav-item.active {
+        border-left: none;
+        background: rgba(0,240,255,0.16);
+    }
+
+    .dash-controls-row {
+        margin-top: 0;
+        gap: 8px;
+    }
+
+    .dash-main {
+        padding: 14px;
+        overflow-x: hidden;
+    }
+
+    .dash-heading {
+        font-size: 0.95rem;
+        margin-bottom: 14px;
     }
 
     .stats-cards {
         grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .stat-card {
+        padding: 12px 10px;
+        gap: 4px;
+    }
+
+    .stat-card-icon {
+        font-size: 1.25rem;
+    }
+
+    .stat-card-value {
+        font-size: 1.05rem;
     }
 }
 
 @media (max-width: 540px) {
     .stats-cards {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
     }
 
     .dash-main {
-        padding: 20px 16px;
+        padding: 14px 12px;
     }
 
     .login-card {
@@ -1927,18 +2027,18 @@ html, body {
 
 /* ─────────────────────────────────────────────────────────────
    ON-SCREEN TOUCH CONTROLS (Touch devices ONLY)
-   Pinned to far bottom-left and bottom-right edges with low opacity
+   Positioned in natural thumb zone away from Android edge-back gesture
 ───────────────────────────────────────────────────────────── */
 .touch-controls {
     position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 8px;
+    left: max(24px, env(safe-area-inset-left));
+    right: max(24px, env(safe-area-inset-right));
+    bottom: max(18px, env(safe-area-inset-bottom));
     z-index: 40;
     display: none;
     justify-content: space-between;
     align-items: flex-end;
-    padding: 0 12px;
+    padding: 0;
     pointer-events: none;
 }
 
@@ -1960,20 +2060,20 @@ html, body {
 
 .touch-group {
     display: flex;
-    gap: 10px;
+    gap: 14px;
     pointer-events: auto;
 }
 
 .touch-btn {
-    width: 50px;
-    height: 50px;
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
     border: 1.5px solid rgba(0, 240, 255, 0.45);
-    background: rgba(10, 14, 32, 0.52);
+    background: rgba(10, 14, 32, 0.55);
     color: #ffffff;
     font-size: 1.2rem;
     font-weight: 700;
-    opacity: 0.55;
+    opacity: 0.62;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1982,19 +2082,25 @@ html, body {
     touch-action: none;
     user-select: none;
     cursor: pointer;
-    transition: transform 0.08s ease, background 0.1s ease, opacity 0.1s ease;
+    transition: transform 0.07s ease, background 0.08s ease, opacity 0.08s ease, box-shadow 0.08s ease;
 }
 
 .touch-btn.active,
 .touch-btn:active {
-    opacity: 0.95;
-    transform: scale(0.92);
+    opacity: 0.98;
+    transform: scale(0.88);
     background: rgba(0, 240, 255, 0.35);
     border-color: #00f0ff;
+    box-shadow: 0 0 18px rgba(0, 240, 255, 0.72);
 }
 
 .touch-btn-jump {
     border-color: rgba(255, 209, 102, 0.6);
+}
+
+.touch-btn-jump.active,
+.touch-btn-jump:active {
+    box-shadow: 0 0 18px rgba(255, 209, 102, 0.75);
 }
 
 [data-theme="light"] .touch-btn {
@@ -2177,9 +2283,9 @@ html, body {
         flex-shrink: 0;
     }
 
-    /* Move Energy bar to top-center below compact HUD so bottom ground & touch buttons stay 100% clear */
+    /* Move Energy bar to top-center below compact HUD with clear vertical spacing */
     .energy-hud-wrap {
-        top: 38px;
+        top: 52px;
         bottom: auto;
         width: 160px;
     }

@@ -82,6 +82,8 @@ export class GameEngine {
         this.isPaused = false;
         this.pauseOverlay = document.getElementById('pause-overlay');
         this.touchControls = document.getElementById('touch-controls');
+        this._touchReleaseHandlers = [];
+        this._historyGuardActive = false;
 
         // Screen shake (visual juice)
         this.shakeTimer = 0;
@@ -93,6 +95,7 @@ export class GameEngine {
         this.initCanvasScale();
         this.bindEvents();
         this._bindTouchControls();
+        this._bindBackGuard();
         this._bindRotateHint();
         sound.syncMuteUI();
         this.showMenu();
@@ -198,39 +201,94 @@ export class GameEngine {
 
     _bindTouchControls() {
         const map = [
-            { id: 'touch-left',   key: 'left'  },
-            { id: 'touch-right',  key: 'right' },
-            { id: 'touch-jump',   key: 'jump'  },
-            { id: 'touch-crouch', key: 'down'  }
+            { id: 'touch-left',   key: 'left',  haptic: false },
+            { id: 'touch-right',  key: 'right', haptic: false },
+            { id: 'touch-jump',   key: 'jump',  haptic: true  },
+            { id: 'touch-crouch', key: 'down',  haptic: true  }
         ];
 
-        map.forEach(({ id, key }) => {
+        this._touchReleaseHandlers = [];
+
+        map.forEach(({ id, key, haptic }) => {
             const btn = document.getElementById(id);
             if (!btn) return;
 
-            const press = (e) => {
-                e.preventDefault();
-                sound.ensureAudioContext();
-                if (this.state === GAME_STATE.PLAYING && !this.isPaused) {
-                    this.keys[key] = true;
-                    btn.classList.add('active');
+            const activePointers = new Set();
+
+            const releasePointer = (pointerId) => {
+                if (pointerId !== undefined) {
+                    activePointers.delete(pointerId);
+                } else {
+                    activePointers.clear();
+                }
+                if (activePointers.size === 0) {
+                    this.keys[key] = false;
+                    btn.classList.remove('active');
                 }
             };
 
-            const release = (e) => {
-                if (e) e.preventDefault();
-                this.keys[key] = false;
-                btn.classList.remove('active');
+            const onPointerDown = (e) => {
+                e.preventDefault();
+                sound.ensureAudioContext();
+                if (this.state !== GAME_STATE.PLAYING || this.isPaused) return;
+
+                activePointers.add(e.pointerId);
+                this.keys[key] = true;
+                btn.classList.add('active');
+
+                if (haptic && navigator.vibrate) {
+                    try { navigator.vibrate(12); } catch (err) {}
+                }
+
+                try {
+                    btn.setPointerCapture?.(e.pointerId);
+                } catch (err) {}
             };
 
-            btn.addEventListener('pointerdown', press, { passive: false });
-            btn.addEventListener('pointerup', release, { passive: false });
-            btn.addEventListener('pointercancel', release, { passive: false });
-            btn.addEventListener('pointerleave', release, { passive: false });
-            btn.addEventListener('touchstart', press, { passive: false });
-            btn.addEventListener('touchend', release, { passive: false });
-            btn.addEventListener('touchcancel', release, { passive: false });
+            const onPointerUp = (e) => {
+                e.preventDefault();
+                releasePointer(e.pointerId);
+            };
+
+            btn.addEventListener('pointerdown', onPointerDown, { passive: false });
+            btn.addEventListener('pointerup', onPointerUp, { passive: false });
+            btn.addEventListener('pointercancel', onPointerUp, { passive: false });
+            btn.addEventListener('lostpointercapture', onPointerUp, { passive: false });
+            btn.addEventListener('contextmenu', (e) => e.preventDefault());
+
+            this._touchReleaseHandlers.push(() => releasePointer());
         });
+    }
+
+    _clearTouchInputs() {
+        this.keys = { left: false, right: false, jump: false, down: false };
+        this._touchReleaseHandlers.forEach(fn => fn());
+    }
+
+    _bindBackGuard() {
+        window.addEventListener('popstate', () => {
+            if (this.state === GAME_STATE.PLAYING && !this.isPaused) {
+                this._togglePause();
+                try {
+                    window.history.pushState({ shootingStarsPlaying: true }, '');
+                } catch (e) {}
+            }
+        });
+
+        window.addEventListener('beforeunload', (e) => {
+            if (this.state === GAME_STATE.PLAYING && !this.isPaused) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+    }
+
+    _armHistoryGuard() {
+        if (this._historyGuardActive) return;
+        try {
+            window.history.pushState({ shootingStarsPlaying: true }, '');
+            this._historyGuardActive = true;
+        } catch (e) {}
     }
 
     _bindRotateHint() {
@@ -301,7 +359,7 @@ export class GameEngine {
     _togglePause() {
         if (!this.isPaused) {
             this.isPaused = true;
-            this.keys = { left: false, right: false, jump: false, down: false };
+            this._clearTouchInputs();
             this._setTouchControlsVisible(false);
             this._showPauseMessage();
         } else {
@@ -326,6 +384,7 @@ export class GameEngine {
         if (this._isTouchDevice()) {
             this._requestFullscreen();
         }
+        this._armHistoryGuard();
         this.score = 0;
         this._runSaved = false; // reset save guard for new run
         this._resumeFromPause(true);
@@ -340,7 +399,7 @@ export class GameEngine {
         this.coins.reset();
         this.rageBait.reset(sound);
         this.energy.reset();
-        this.keys = { left: false, right: false, jump: false, down: false };
+        this._clearTouchInputs();
 
         this.state = GAME_STATE.INTRO;
         this.introTimer = 0;
@@ -352,6 +411,7 @@ export class GameEngine {
     gameOver(reason) {
         if (this.state === GAME_STATE.GAMEOVER) return;
         this.state = GAME_STATE.GAMEOVER;
+        this._clearTouchInputs();
         this._setTouchControlsVisible(false);
         this.rageBait.reset(sound);
         this.deathCause = reason;
