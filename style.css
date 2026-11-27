@@ -1927,17 +1927,18 @@ html, body {
 
 /* ─────────────────────────────────────────────────────────────
    ON-SCREEN TOUCH CONTROLS (Touch devices ONLY)
+   Pinned to far bottom-left and bottom-right edges with low opacity
 ───────────────────────────────────────────────────────────── */
 .touch-controls {
-    position: absolute;
+    position: fixed;
     left: 0;
     right: 0;
-    bottom: 14px;
-    z-index: 22;
+    bottom: 8px;
+    z-index: 40;
     display: none;
     justify-content: space-between;
     align-items: flex-end;
-    padding: 0 18px;
+    padding: 0 12px;
     pointer-events: none;
 }
 
@@ -1959,50 +1960,52 @@ html, body {
 
 .touch-group {
     display: flex;
-    gap: 12px;
+    gap: 10px;
     pointer-events: auto;
 }
 
 .touch-btn {
-    width: 58px;
-    height: 58px;
+    width: 50px;
+    height: 50px;
     border-radius: 50%;
     border: 1.5px solid rgba(0, 240, 255, 0.45);
-    background: rgba(10, 14, 32, 0.45);
+    background: rgba(10, 14, 32, 0.52);
     color: #ffffff;
-    font-size: 1.35rem;
+    font-size: 1.2rem;
     font-weight: 700;
+    opacity: 0.55;
     display: flex;
     align-items: center;
     justify-content: center;
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
     touch-action: none;
     user-select: none;
     cursor: pointer;
-    transition: transform 0.08s ease, background 0.1s ease;
+    transition: transform 0.08s ease, background 0.1s ease, opacity 0.1s ease;
 }
 
 .touch-btn.active,
 .touch-btn:active {
+    opacity: 0.95;
     transform: scale(0.92);
-    background: rgba(0, 240, 255, 0.32);
+    background: rgba(0, 240, 255, 0.35);
     border-color: #00f0ff;
 }
 
 .touch-btn-jump {
-    border-color: rgba(255, 209, 102, 0.55);
+    border-color: rgba(255, 209, 102, 0.6);
 }
 
 [data-theme="light"] .touch-btn {
-    background: rgba(255, 255, 255, 0.55);
+    background: rgba(255, 255, 255, 0.6);
     color: #0f172a;
     border-color: rgba(2, 132, 199, 0.5);
 }
 
 [data-theme="light"] .touch-btn.active,
 [data-theme="light"] .touch-btn:active {
-    background: rgba(2, 132, 199, 0.25);
+    background: rgba(2, 132, 199, 0.28);
 }
 
 
@@ -2052,21 +2055,46 @@ html, body {
 /* ─────────────────────────────────────────────────────────────
    MOBILE RESPONSIVE HUD, MODALS & DASHBOARD POLISH
 ───────────────────────────────────────────────────────────── */
+.profile-info {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.profile-email {
+    font-size: 0.78rem;
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+
+@media (max-width: 860px) {
+    .profile-email {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 190px;
+    }
+}
+
 @media (max-width: 760px) {
     #hud-layer {
-        padding: 10px 12px;
+        padding: 8px 10px;
+    }
+
+    .hud-group {
+        gap: 6px;
+        flex-wrap: nowrap;
     }
 
     .hud-card {
-        padding: 6px 9px;
+        padding: 5px 8px;
     }
 
     .hud-label {
-        font-size: 0.52rem;
+        font-size: 0.5rem;
     }
 
     .hud-value {
-        font-size: 0.85rem;
+        font-size: 0.78rem;
     }
 
     .hud-sub {
@@ -2074,14 +2102,14 @@ html, body {
     }
 
     .icon-btn {
-        width: 34px;
-        height: 34px;
-        font-size: 0.9rem;
+        width: 30px;
+        height: 30px;
+        font-size: 0.82rem;
     }
 
     .energy-hud-wrap {
-        width: 180px;
-        bottom: 10px;
+        width: 148px;
+        bottom: 12px;
     }
 
     .lb-row {
@@ -2095,13 +2123,13 @@ html, body {
     }
 
     .gameover-panel {
-        padding: 18px 16px;
-        max-height: 92vh;
+        padding: 16px 14px;
+        max-height: 92dvh;
         overflow-y: auto;
     }
 
     .gameover-title {
-        font-size: 1.5rem;
+        font-size: 1.4rem;
     }
 
     .button-row {
@@ -2110,18 +2138,185 @@ html, body {
     }
 }
 
-@media (max-height: 500px) and (orientation: landscape) {
+/* ── Mobile Landscape (phones ~340px–520px tall) ── */
+@media (max-height: 520px) {
     #hud-layer {
-        padding: 8px 12px;
+        padding: 5px 8px;
+        align-items: center;
     }
 
+    .hud-group {
+        gap: 4px;
+        flex-wrap: nowrap;
+    }
+
+    .hud-card {
+        padding: 3px 6px;
+        border-radius: 6px;
+        min-width: 0;
+    }
+
+    .hud-label {
+        font-size: 0.45rem;
+        letter-spacing: 0.4px;
+    }
+
+    .hud-value {
+        font-size: 0.72rem;
+    }
+
+    .hud-sub {
+        display: none;
+    }
+
+    .icon-btn {
+        width: 26px;
+        height: 26px;
+        font-size: 0.75rem;
+        padding: 0;
+        flex-shrink: 0;
+    }
+
+    /* Move Energy bar to top-center below compact HUD so bottom ground & touch buttons stay 100% clear */
     .energy-hud-wrap {
-        bottom: 8px;
+        top: 38px;
+        bottom: auto;
+        width: 160px;
+    }
+
+    .energy-hud-row {
+        font-size: 0.55rem;
+        margin-bottom: 2px;
+    }
+
+    .energy-bar-outer {
+        height: 7px;
     }
 
     .touch-btn {
-        width: 50px;
-        height: 50px;
+        width: 48px;
+        height: 48px;
+        font-size: 1.1rem;
+    }
+
+    /* Compact 2-column Game Over modal so score + all buttons fit without scrolling */
+    #gameover-screen {
+        padding: 6px;
+        align-items: center;
+    }
+
+    .gameover-panel {
+        max-height: 92dvh;
+        overflow-y: auto;
+        padding: 10px 14px;
+        width: 94%;
+        max-width: 680px;
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        grid-template-areas:
+            "header header"
+            "stats chart"
+            "badge badge"
+            "actions actions";
+        gap: 6px 12px;
+        align-items: center;
+    }
+
+    .gameover-panel .danger-header {
+        grid-area: header;
+        margin-bottom: 0;
+    }
+
+    .gameover-title {
         font-size: 1.15rem;
+        margin-bottom: 2px;
+    }
+
+    .death-reason {
+        font-size: 0.72rem;
+        margin-bottom: 0;
+    }
+
+    .gameover-panel .stats-grid {
+        grid-area: stats;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 5px;
+        margin: 0;
+    }
+
+    .stat-box {
+        padding: 5px 6px;
+    }
+
+    .stat-lbl {
+        font-size: 0.48rem;
+    }
+
+    .stat-val {
+        font-size: 0.78rem;
+    }
+
+    .gameover-panel .analytics-section {
+        grid-area: chart;
+        margin: 0;
+        padding: 6px;
+    }
+
+    .analytics-title {
+        font-size: 0.58rem;
+        margin-bottom: 3px;
+    }
+
+    .analytics-chart {
+        height: 68px !important;
+    }
+
+    .gameover-panel .new-record-badge {
+        grid-area: badge;
+        padding: 3px 10px;
+        font-size: 0.68rem;
+        margin: 0 auto;
+    }
+
+    .gameover-panel .button-row {
+        grid-area: actions;
+        margin-top: 2px;
+        gap: 8px;
+        flex-wrap: nowrap;
+        justify-content: center;
+    }
+
+    .gameover-panel .button-row button {
+        padding: 7px 14px;
+        font-size: 0.72rem;
+    }
+
+    /* Compact horizontal Pause card */
+    .pause-card {
+        max-height: 92dvh;
+        overflow-y: auto;
+        padding: 14px 18px;
+        gap: 8px;
+        max-width: 440px;
+    }
+
+    .pause-title {
+        font-size: 1.5rem;
+        letter-spacing: 4px;
+    }
+
+    .pause-hint {
+        font-size: 0.62rem;
+    }
+
+    .pause-actions {
+        flex-direction: row;
+        gap: 8px;
+        margin-top: 4px;
+    }
+
+    .pause-actions button {
+        padding: 8px 10px;
+        font-size: 0.72rem;
     }
 }

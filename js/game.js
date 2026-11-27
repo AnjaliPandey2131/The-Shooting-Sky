@@ -114,6 +114,9 @@ export class GameEngine {
             this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         };
         window.addEventListener('resize', resize);
+        window.addEventListener('orientationchange', () => setTimeout(resize, 120));
+        document.addEventListener('fullscreenchange', resize);
+        document.addEventListener('webkitfullscreenchange', resize);
         resize();
     }
 
@@ -166,6 +169,10 @@ export class GameEngine {
 
         document.getElementById('hud-theme-btn')?.addEventListener('click', () => {
             toggleTheme();
+        });
+
+        document.getElementById('hud-fullscreen-btn')?.addEventListener('click', () => {
+            this._toggleFullscreen();
         });
 
         document.getElementById('hud-pause-btn')?.addEventListener('click', () => {
@@ -248,6 +255,41 @@ export class GameEngine {
         this.touchControls.classList.toggle('hidden', !visible);
     }
 
+    _isTouchDevice() {
+        return (
+            document.body.classList.contains('has-touch') ||
+            'ontouchstart' in window ||
+            navigator.maxTouchPoints > 0
+        );
+    }
+
+    _requestFullscreen() {
+        try {
+            const el = document.documentElement;
+            if (document.fullscreenElement || document.webkitFullscreenElement) return;
+            const fn = el.requestFullscreen || el.webkitRequestFullscreen;
+            if (typeof fn === 'function') {
+                const res = fn.call(el);
+                if (res && typeof res.catch === 'function') res.catch(() => {});
+            }
+        } catch (e) {}
+    }
+
+    _toggleFullscreen() {
+        try {
+            const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+            if (fsEl) {
+                const exitFn = document.exitFullscreen || document.webkitExitFullscreen;
+                if (typeof exitFn === 'function') {
+                    const res = exitFn.call(document);
+                    if (res && typeof res.catch === 'function') res.catch(() => {});
+                }
+            } else {
+                this._requestFullscreen();
+            }
+        } catch (e) {}
+    }
+
     showMenu() {
         this.state = GAME_STATE.MENU;
         this._resumeFromPause(true);
@@ -281,6 +323,9 @@ export class GameEngine {
     }
 
     startGame() {
+        if (this._isTouchDevice()) {
+            this._requestFullscreen();
+        }
         this.score = 0;
         this._runSaved = false; // reset save guard for new run
         this._resumeFromPause(true);
