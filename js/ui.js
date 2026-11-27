@@ -25,6 +25,7 @@ export class UIManager {
         this.hudScoreVal  = document.getElementById('hud-score-val');
         this.hudBestVal   = document.getElementById('hud-best-val');
         this.hudCoinVal   = document.getElementById('hud-coin-num');
+        this.hudGemVal    = document.getElementById('hud-gem-num');
 
         // Energy HUD
         this.energyFill    = document.getElementById('energy-fill');
@@ -34,6 +35,7 @@ export class UIManager {
         // Shield HUD
         this.shieldCount   = document.getElementById('shield-count');
         this.shieldActive  = document.getElementById('shield-active');
+        this.powerupHud    = document.getElementById('powerup-hud');
 
         // Menu Score Elements
         this.menuBestScore   = document.getElementById('menu-best-score');
@@ -267,6 +269,31 @@ export class UIManager {
                 this.shieldActive.classList.remove('shield-active-glow');
             }
         }
+    }
+
+    updateGemHUD(gemCount = 0) {
+        if (this.hudGemVal) {
+            this.hudGemVal.textContent = Math.max(0, Math.floor(gemCount)).toLocaleString();
+        }
+    }
+
+    updatePowerUpHUD(activePowerUps, activeWorld = null, windForce = 0) {
+        if (!this.powerupHud) return;
+        const pills = [];
+        if (activePowerUps?.magnet > 0) {
+            pills.push(`<span class="pu-pill pu-magnet">🧲 ${Math.ceil(activePowerUps.magnet)}s</span>`);
+        }
+        if (activePowerUps?.slowmo > 0) {
+            pills.push(`<span class="pu-pill pu-slowmo">⏳ ${Math.ceil(activePowerUps.slowmo)}s</span>`);
+        }
+        if (activePowerUps?.doubleScore > 0) {
+            pills.push(`<span class="pu-pill pu-double">⚡ 2x ${Math.ceil(activePowerUps.doubleScore)}s</span>`);
+        }
+        if (activeWorld?.hasWind && Math.abs(windForce) > 0.05) {
+            const dir = windForce > 0 ? '→' : '←';
+            pills.push(`<span class="pu-pill pu-wind">💨 ${dir}</span>`);
+        }
+        this.powerupHud.innerHTML = pills.join('');
     }
 
     triggerLevelBanner(stageConfig) {

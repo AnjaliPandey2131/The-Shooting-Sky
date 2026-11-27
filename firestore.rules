@@ -62,7 +62,11 @@ service cloud.firestore {
           && d.totalGames    is int   && d.totalGames    == 0
           && d.totalCoins    is int   && d.totalCoins    == 0
           && d.highestStage  is int   && d.highestStage  == 0
-          && d.totalSurvivalTime is int && d.totalSurvivalTime == 0;
+          && d.totalSurvivalTime is int && d.totalSurvivalTime == 0
+          && (!d.keys().hasAny(['totalGems']) || (d.totalGems is int && d.totalGems >= 0))
+          && (!d.keys().hasAny(['unlockedSkins']) || d.unlockedSkins is list)
+          && (!d.keys().hasAny(['selectedSkin']) || d.selectedSkin is string)
+          && (!d.keys().hasAny(['dailyMissions']) || d.dailyMissions is map);
     }
 
     function _validProfileUpdate() {
@@ -70,10 +74,16 @@ service cloud.firestore {
       // via runTransaction in db.js and are validated by type.
       let allowed = ['displayName','email','photoURL','lastLoginAt',
                      'bestScore','previousScore','totalGames','totalCoins',
-                     'highestStage','totalSurvivalTime','lastPlayedAt',
-                     'localScoreMigrated'];
+                     'totalGems','highestStage','totalSurvivalTime','lastPlayedAt',
+                     'localScoreMigrated','currentStreak','bestStreak',
+                     'lastPlayedDate','selectedWorld','unlockedWorlds',
+                     'unlockedSkins','selectedSkin','dailyMissions'];
       return request.resource.data.diff(resource.data).affectedKeys()
-                                  .hasOnly(allowed);
+                                  .hasOnly(allowed)
+          && (!request.resource.data.keys().hasAny(['totalGems'])
+              || (request.resource.data.totalGems is int && request.resource.data.totalGems >= 0))
+          && (!request.resource.data.keys().hasAny(['totalCoins'])
+              || (request.resource.data.totalCoins is int && request.resource.data.totalCoins >= 0));
     }
 
     function _validGameRun() {

@@ -32,14 +32,23 @@
                 </div>
             </div>
 
-            <!-- Top Center: Coin Counter -->
+            <!-- Top Center: Coin & Gem Counter + Active Power-Ups -->
             <div class="hud-group top-center">
-                <div class="hud-card coin-card">
-                    <span class="hud-label">COINS</span>
-                    <span id="hud-coin-val" class="hud-value coin-value">
-                        <span class="coin-icon">🪙</span><span id="hud-coin-num">0</span>
-                    </span>
+                <div class="hud-center-row">
+                    <div class="hud-card coin-card">
+                        <span class="hud-label">COINS</span>
+                        <span id="hud-coin-val" class="hud-value coin-value">
+                            <span class="coin-icon">🪙</span><span id="hud-coin-num">0</span>
+                        </span>
+                    </div>
+                    <div class="hud-card gem-card">
+                        <span class="hud-label">GEMS</span>
+                        <span id="hud-gem-val" class="hud-value gem-value">
+                            <span class="gem-icon">💎</span><span id="hud-gem-num">0</span>
+                        </span>
+                    </div>
                 </div>
+                <div id="powerup-hud" class="powerup-hud"></div>
             </div>
 
             <!-- Top Right: Score + Theme + Audio + Pause -->
@@ -269,6 +278,26 @@
                     <button id="dashboard-btn" class="secondary-btn dashboard-return-btn">
                         <span>📊 DASHBOARD</span>
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Save Me / Revive Overlay (5s countdown when player has enough Gems) -->
+        <div id="revive-overlay" class="overlay-screen hidden">
+            <div class="revive-card glass-panel">
+                <div class="revive-title">💎 SAVE ME?</div>
+                <p id="revive-reason" class="revive-reason">Continue your cosmic run!</p>
+                <div class="revive-timer-wrap">
+                    <div id="revive-timer-text" class="revive-timer-text">5s</div>
+                    <div class="revive-bar-outer">
+                        <div id="revive-bar-fill" class="revive-bar-fill"></div>
+                    </div>
+                </div>
+                <div class="revive-actions">
+                    <button id="revive-accept-btn" class="primary-btn pulse-glow revive-btn" type="button">
+                        💎 REVIVE (2 💎)
+                    </button>
+                    <button id="revive-skip-btn" class="secondary-btn" type="button">SKIP</button>
                 </div>
             </div>
         </div>

@@ -23,6 +23,24 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
 import { db } from './firebase.js';
+import { computeUnlockedWorlds } from './worlds.js';
+import { createFreshDailyMissions, evaluateDailyMissions } from './missions.js';
+
+// ── Date helpers (local YYYY-MM-DD) ───────────────────────────────────────────
+function _formatLocalDate(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+function _getTodayAndYesterday() {
+    const now = new Date();
+    const today = _formatLocalDate(now);
+    const yest = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    const yesterday = _formatLocalDate(yest);
+    return { today, yesterday };
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const userRef        = uid => doc(db, 'users', uid);
@@ -52,10 +70,19 @@ export async function createOrUpdateUser(firebaseUser) {
             previousScore:     0,
             totalGames:        0,
             totalCoins:        0,
+            totalGems:         0,
             highestStage:      0,
             totalSurvivalTime: 0,
             lastPlayedAt:      null,
-            localScoreMigrated: false
+            localScoreMigrated: false,
+            currentStreak:     0,
+            bestStreak:        0,
+            lastPlayedDate:    '',
+            selectedWorld:     'earth',
+            unlockedWorlds:    ['earth'],
+            selectedSkin:      'cyan',
+            unlockedSkins:     ['cyan'],
+            dailyMissions:     createFreshDailyMissions(_formatLocalDate(new Date()))
         });
     } else {
         // Subsequent logins — only update mutable profile fields
@@ -166,6 +193,8 @@ export async function saveGameRun(uid, runData) {
     const {
         score             = 0,
         coinsCollected    = 0,
+        gemsCollected     = 0,
+        netGemsDelta      = 0,
         highestStageReached = 1,
         highestStageName  = 'CALM SKY',
         survivalTime      = 0,
@@ -176,6 +205,8 @@ export async function saveGameRun(uid, runData) {
     const roundedScore   = Math.floor(score);
     const roundedTime    = Math.round(survivalTime);
     const roundedCoins   = Math.floor(coinsCollected);
+    const roundedGems    = Math.floor(gemsCollected);
+    const roundedGemDelta = Math.trunc(netGemsDelta);
 
     let runId   = null;
     let isNewBest = false;
@@ -184,6 +215,7 @@ export async function saveGameRun(uid, runData) {
     const runDoc = await addDoc(runsRef(uid), {
         score:               roundedScore,
         coinsCollected:      roundedCoins,
+        gemsCollected:       roundedGems,
         highestStageReached,
         highestStageName,
         survivalTime:        roundedTime,
@@ -203,17 +235,44 @@ export async function saveGameRun(uid, runData) {
         const newBest = roundedScore > (data.bestScore || 0);
         isNewBest     = newBest;
 
+        const { today, yesterday } = _getTodayAndYesterday();
+        const { nextMissionsState, bonusCoinsEarned } = evaluateDailyMissions(
+            data.dailyMissions,
+            today,
+            { coinsCollected: roundedCoins, survivalTime: roundedTime }
+        );
+
         const nextBestScore    = newBest ? roundedScore : (data.bestScore || 0);
+        const nextTotalCoins   = (data.totalCoins || 0) + roundedCoins + bonusCoinsEarned;
+        const nextTotalGems    = Math.max(0, (data.totalGems || 0) + roundedGemDelta);
         const nextHighestStage = highestStageReached > (data.highestStage || 0)
             ? highestStageReached
             : (data.highestStage || 1);
 
+        // ── Daily Streak calculation ──
+        let nextStreak = data.currentStreak || 0;
+        if (data.lastPlayedDate === today) {
+            nextStreak = Math.max(1, nextStreak);
+        } else if (data.lastPlayedDate === yesterday) {
+            nextStreak = nextStreak + 1;
+        } else {
+            nextStreak = 1;
+        }
+        const nextBestStreak = Math.max(data.bestStreak || 0, nextStreak);
+        const nextUnlockedWorlds = computeUnlockedWorlds(nextBestScore, nextTotalCoins, data.unlockedWorlds);
+
         const updates = {
             previousScore:     roundedScore,
             totalGames:        (data.totalGames     || 0) + 1,
-            totalCoins:        (data.totalCoins      || 0) + roundedCoins,
+            totalCoins:        nextTotalCoins,
+            totalGems:         nextTotalGems,
             totalSurvivalTime: (data.totalSurvivalTime || 0) + roundedTime,
-            lastPlayedAt:      serverTimestamp()
+            lastPlayedAt:      serverTimestamp(),
+            currentStreak:     nextStreak,
+            bestStreak:        nextBestStreak,
+            lastPlayedDate:    today,
+            unlockedWorlds:    nextUnlockedWorlds,
+            dailyMissions:     nextMissionsState
         };
 
         if (newBest) {
@@ -242,6 +301,48 @@ export async function saveGameRun(uid, runData) {
     }
 
     return { runId, isNewBest };
+}
+
+// ── Save selected world ───────────────────────────────────────────────────────
+export async function saveSelectedWorld(uid, worldId) {
+    try {
+        await updateDoc(userRef(uid), { selectedWorld: worldId });
+    } catch (err) {
+        console.warn('[DB] Failed to save selectedWorld (non-fatal):', err.message);
+    }
+}
+
+// ── Unlock & equip Stickman skin (Armory) ─────────────────────────────────────
+export async function unlockAndEquipSkin(uid, skinId, cost) {
+    return runTransaction(db, async tx => {
+        const snap = await tx.get(userRef(uid));
+        if (!snap.exists()) throw new Error('Profile not found');
+
+        const data = snap.data();
+        const unlocked = new Set(Array.isArray(data.unlockedSkins) ? data.unlockedSkins : ['cyan']);
+        let totalCoins = data.totalCoins || 0;
+
+        if (!unlocked.has(skinId)) {
+            if (totalCoins < cost) {
+                throw new Error('Not enough coins');
+            }
+            totalCoins -= cost;
+            unlocked.add(skinId);
+        }
+
+        const nextUnlocked = Array.from(unlocked);
+        tx.update(userRef(uid), {
+            totalCoins,
+            unlockedSkins: nextUnlocked,
+            selectedSkin: skinId
+        });
+
+        return { totalCoins, unlockedSkins: nextUnlocked, selectedSkin: skinId };
+    });
+}
+
+export async function equipSkin(uid, skinId) {
+    await updateDoc(userRef(uid), { selectedSkin: skinId });
 }
 
 // ── Fetch recent game runs ────────────────────────────────────────────────────

@@ -24,7 +24,7 @@ export class DifficultyManager {
         return CONFIG.STAGES[this.currentStageIndex];
     }
 
-    update(dt, particleSystem, platformManager, sound) {
+    update(dt, particleSystem, platformManager, sound, hazardSpeedMult = 1.0) {
         this.survivalTime += dt;
 
         // 1. Check for Level Progression
@@ -72,7 +72,7 @@ export class DifficultyManager {
         // 5. Update Active Hazards
         for (let i = this.hazards.length - 1; i >= 0; i--) {
             const h = this.hazards[i];
-            h.update(particleSystem);
+            h.update(particleSystem, hazardSpeedMult);
             if (h.isOffscreen) {
                 this.hazards.splice(i, 1);
             }

@@ -1589,7 +1589,7 @@ html, body {
 
     .dash-nav {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(4, 1fr);
         gap: 4px;
         width: 100%;
         padding: 4px;
@@ -2403,5 +2403,509 @@ html, body {
     .pause-actions button {
         padding: 8px 10px;
         font-size: 0.72rem;
+    }
+}
+
+
+/* ═════════════════════════════════════════════════════════════
+   PHASE 1 GAMIFICATION: DAILY STREAK, WORLD SELECTOR & POWER-UPS
+   ═════════════════════════════════════════════════════════════ */
+
+.streak-bonus-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: rgba(251, 146, 60, 0.16);
+    border: 1px solid rgba(251, 146, 60, 0.45);
+    color: #fdba74;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+}
+
+.streak-bonus-badge.hidden {
+    display: none;
+}
+
+[data-theme="light"] .streak-bonus-badge {
+    background: rgba(234, 88, 12, 0.12);
+    border-color: rgba(234, 88, 12, 0.38);
+    color: #c2410c;
+}
+
+/* ── World Selector ── */
+.world-selector-wrap {
+    margin-bottom: 18px;
+}
+
+.world-selector-title {
+    font-family: var(--font-heading);
+    font-size: 0.72rem;
+    letter-spacing: 1.5px;
+    color: var(--primary-cyan);
+    margin-bottom: 10px;
+}
+
+.world-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.world-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 11px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    text-align: left;
+    cursor: pointer;
+    color: #ffffff;
+    font-family: var(--font-body);
+    transition: transform 0.15s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.world-card:hover:not(:disabled) {
+    transform: translateY(-2px);
+    border-color: rgba(0, 240, 255, 0.45);
+}
+
+.world-card.selected {
+    border-color: var(--primary-cyan);
+    background: rgba(0, 240, 255, 0.12);
+    box-shadow: 0 0 18px rgba(0, 240, 255, 0.2);
+}
+
+.world-card.locked {
+    opacity: 0.52;
+    cursor: not-allowed;
+}
+
+.world-card-top {
+    font-weight: 700;
+    font-size: 0.84rem;
+    line-height: 1.2;
+}
+
+.world-card-sub {
+    font-size: 0.68rem;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1.25;
+}
+
+[data-theme="light"] .world-card {
+    color: #0f172a;
+}
+
+[data-theme="light"] .world-card-sub {
+    color: #475569;
+}
+
+[data-theme="light"] .world-card.selected {
+    background: rgba(2, 132, 199, 0.12);
+    border-color: #0284c7;
+}
+
+@media (max-width: 860px) {
+    .world-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+
+    .world-card {
+        padding: 9px 10px;
+    }
+
+    .world-card-top {
+        font-size: 0.78rem;
+    }
+
+    .world-card-sub {
+        font-size: 0.64rem;
+    }
+
+    .dash-heading-row {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+}
+
+/* ── Active Power-Up HUD Pills ── */
+.hud-group.top-center {
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.powerup-hud {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+}
+
+.pu-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-family: var(--font-heading);
+    font-size: 0.62rem;
+    font-weight: 700;
+    background: rgba(10, 14, 32, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+    white-space: nowrap;
+}
+
+.pu-magnet { border-color: #38bdf8; color: #38bdf8; }
+.pu-slowmo { border-color: #c084fc; color: #c084fc; }
+.pu-double { border-color: #facc15; color: #facc15; }
+.pu-wind   { border-color: #fb923c; color: #fb923c; }
+
+@media (max-height: 520px) {
+    .pu-pill {
+        padding: 2px 6px;
+        font-size: 0.52rem;
+    }
+}
+
+
+/* ═════════════════════════════════════════════════════════════
+   GEMS HUD & SAVE ME / REVIVE OVERLAY
+   ═════════════════════════════════════════════════════════════ */
+.hud-center-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.gem-card {
+    border-color: rgba(56, 189, 248, 0.35);
+}
+
+.gem-value {
+    color: #38bdf8;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+[data-theme="light"] .gem-value {
+    color: #0284c7;
+}
+
+.revive-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 28px 34px;
+    max-width: 380px;
+    width: 90%;
+    text-align: center;
+    border-color: rgba(56, 189, 248, 0.45);
+    box-shadow: 0 0 40px rgba(56, 189, 248, 0.2);
+}
+
+.revive-title {
+    font-family: var(--font-heading);
+    font-size: 1.85rem;
+    font-weight: 900;
+    color: #38bdf8;
+    letter-spacing: 2px;
+    text-shadow: 0 0 18px rgba(56, 189, 248, 0.55);
+}
+
+.revive-reason {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+[data-theme="light"] .revive-reason {
+    color: #334155;
+}
+
+.revive-timer-wrap {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.revive-timer-text {
+    font-family: var(--font-heading);
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #ffd166;
+}
+
+.revive-bar-outer {
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    overflow: hidden;
+}
+
+.revive-bar-fill {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #38bdf8, #818cf8);
+    transition: width 0.1s linear;
+}
+
+.revive-actions {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.revive-actions button {
+    flex: 1;
+    padding: 11px 14px;
+    font-size: 0.85rem;
+}
+
+@media (max-height: 520px) {
+    .hud-center-row {
+        gap: 4px;
+    }
+
+    .revive-card {
+        padding: 14px 18px;
+        gap: 8px;
+        max-height: 92dvh;
+        overflow-y: auto;
+    }
+
+    .revive-title {
+        font-size: 1.3rem;
+    }
+
+    .revive-timer-text {
+        font-size: 1rem;
+    }
+
+    .revive-actions button {
+        padding: 8px 10px;
+        font-size: 0.76rem;
+    }
+}
+
+
+/* ═════════════════════════════════════════════════════════════
+   PHASE 2: DAILY MINI-MISSIONS & STICKMAN ARMORY (SKINS)
+   ═════════════════════════════════════════════════════════════ */
+
+.missions-wrap {
+    padding: 14px 16px;
+    margin-bottom: 18px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.missions-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.missions-sub {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+[data-theme="light"] .missions-sub {
+    color: #64748b;
+}
+
+.missions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.mission-row {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.mission-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.8rem;
+}
+
+.mission-title {
+    font-weight: 600;
+    color: #ffffff;
+}
+
+[data-theme="light"] .mission-title {
+    color: #0f172a;
+}
+
+.mission-reward {
+    font-family: var(--font-heading);
+    font-size: 0.68rem;
+    color: var(--accent-gold);
+    white-space: nowrap;
+}
+
+.mission-done-badge {
+    font-family: var(--font-heading);
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(6, 214, 160, 0.16);
+    border: 1px solid rgba(6, 214, 160, 0.45);
+    color: #06d6a0;
+    white-space: nowrap;
+}
+
+[data-theme="light"] .mission-done-badge {
+    color: #047857;
+    background: rgba(5, 150, 105, 0.12);
+}
+
+.mission-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mission-bar-outer {
+    flex: 1;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+}
+
+[data-theme="light"] .mission-bar-outer {
+    background: rgba(15, 23, 42, 0.1);
+}
+
+.mission-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #00f0ff, #38bdf8);
+    transition: width 0.25s ease;
+}
+
+.mission-row.completed .mission-bar-fill {
+    background: linear-gradient(90deg, #06d6a0, #34d399);
+}
+
+.mission-count {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.55);
+    min-width: 38px;
+    text-align: right;
+}
+
+[data-theme="light"] .mission-count {
+    color: #475569;
+}
+
+/* ── Armory / Skins Shop ── */
+.armory-balance {
+    font-family: var(--font-heading);
+    font-size: 0.85rem;
+    color: var(--accent-gold);
+    font-weight: 700;
+}
+
+.armory-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.skin-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.skin-card.equipped {
+    border-color: var(--primary-cyan);
+    background: rgba(0, 240, 255, 0.1);
+    box-shadow: 0 0 18px rgba(0, 240, 255, 0.18);
+}
+
+[data-theme="light"] .skin-card.equipped {
+    background: rgba(2, 132, 199, 0.1);
+    border-color: #0284c7;
+}
+
+.skin-swatch {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.skin-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.skin-name {
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: #ffffff;
+}
+
+.skin-desc {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.58);
+}
+
+[data-theme="light"] .skin-name {
+    color: #0f172a;
+}
+
+[data-theme="light"] .skin-desc {
+    color: #475569;
+}
+
+.skin-btn {
+    padding: 7px 12px;
+    font-size: 0.72rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.skin-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+@media (max-width: 760px) {
+    .armory-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .nav-item {
+        font-size: 0.66rem;
+        padding: 8px 2px;
     }
 }

@@ -7,6 +7,7 @@
 
 import { CONFIG } from './config.js';
 import { TILE_STATE } from './floatingPlatforms.js';
+import { getSkinById } from './skins.js';
 
 export class Player {
     constructor() {
@@ -41,6 +42,9 @@ export class Player {
 
         // Near-miss tracking
         this.nearMissCooldown = 0;
+
+        // Motion trail for equipped skin
+        this.trail = [];
     }
 
     /**
@@ -51,7 +55,7 @@ export class Player {
      * @param {SoundManager}            sound
      * @param {EnergyManager}           energyManager - may be null for menu preview
      */
-    update(input, platformManager, floatingPlatforms, sound, energyManager = null) {
+    update(input, platformManager, floatingPlatforms, sound, energyManager = null, worldEffects = null) {
         if (this.isDead) return;
 
         const now = performance.now() / 1000;
@@ -98,7 +102,7 @@ export class Player {
             this.x += this.standingOnTile.dx;
         }
 
-        this.x += this.vx;
+        this.x += this.vx + (worldEffects?.windForce || 0);
 
         // Keep inside screen bounds
         if (this.x < 10) {
@@ -127,8 +131,8 @@ export class Player {
             this.jumpSoundPlayed = false;
         }
 
-        // Apply Gravity
-        this.vy += CONFIG.PLAYER.GRAVITY;
+        // Apply Gravity (scaled by world gravity multiplier)
+        this.vy += CONFIG.PLAYER.GRAVITY * (worldEffects?.gravityMult || 1.0);
 
         // Platform carry: add vertical delta if standing on moving tile
         if (this.standingOnTile && this.standingOnTile.state !== TILE_STATE.GONE) {
@@ -198,6 +202,20 @@ export class Player {
         if (this.nearMissCooldown > 0) {
             this.nearMissCooldown -= 1 / 60;
         }
+
+        // Update motion trail when moving/airborne
+        if (Math.abs(this.vx) > 0.8 || !this.isGrounded) {
+            this.trail.push({
+                x: this.x + this.width / 2,
+                y: this.y + this.height * 0.55,
+                alpha: 0.55
+            });
+            if (this.trail.length > 10) this.trail.shift();
+        }
+        for (let i = this.trail.length - 1; i >= 0; i--) {
+            this.trail[i].alpha -= 0.055;
+            if (this.trail[i].alpha <= 0) this.trail.splice(i, 1);
+        }
     }
 
     /**
@@ -245,8 +263,26 @@ export class Player {
      * @param {EnergyManager} energyManager - may be null
      * @param {boolean} shieldActive
      */
-    draw(ctx, energyManager = null, shieldActive = false) {
+    draw(ctx, energyManager = null, shieldActive = false, skinId = 'cyan') {
         ctx.save();
+        const skin = getSkinById(skinId);
+
+        // Draw equipped skin fading motion trail
+        if (this.trail.length > 0) {
+            for (let i = 0; i < this.trail.length; i++) {
+                const pt = this.trail[i];
+                const r = 4 + (i / this.trail.length) * 6;
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, pt.alpha * 0.65);
+                ctx.fillStyle = skin.trail;
+                ctx.shadowColor = skin.glow;
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
 
         const lean = energyManager ? energyManager.lean : 0;
         const tier = energyManager ? energyManager.tier : 'HIGH';
@@ -310,30 +346,17 @@ export class Player {
             ctx.restore();
         }
 
-        // ── Stickman body colour changes with energy tier & theme ──
+        // ── Stickman body colour changes with equipped skin & theme ──
         const isLightTheme = document.documentElement.getAttribute('data-theme') === 'light';
-        let glowColor, bodyColor;
-        if (isLightTheme) {
-            bodyColor = '#0f172a';
-            switch (tier) {
-                case 'HIGH': glowColor = '#0284c7'; break;
-                case 'MED':  glowColor = '#65a30d'; break;
-                case 'LOW':  glowColor = '#ea580c'; break;
-                default:     glowColor = '#e11d48'; break;
-            }
-            if (this.standingOnTile) glowColor = '#0369a1';
-        } else {
-            switch (tier) {
-                case 'HIGH':
-                    glowColor = '#00f0ff'; bodyColor = '#ffffff'; break;
-                case 'MED':
-                    glowColor = '#a3e635'; bodyColor = '#e8f5e8'; break;
-                case 'LOW':
-                    glowColor = '#fb923c'; bodyColor = '#ffe8d6'; break;
-                default: // ZERO
-                    glowColor = '#f43f5e'; bodyColor = '#fecaca'; break;
-            }
-            if (this.standingOnTile) glowColor = '#88eeff';
+        let glowColor = skin.glow;
+        let bodyColor = isLightTheme ? skin.bodyLight : skin.bodyDark;
+        if (tier === 'LOW' && skin.id === 'cyan') {
+            glowColor = isLightTheme ? '#ea580c' : '#fb923c';
+        } else if (tier === 'ZERO' && skin.id === 'cyan') {
+            glowColor = isLightTheme ? '#e11d48' : '#f43f5e';
+        }
+        if (this.standingOnTile && skin.id === 'cyan') {
+            glowColor = isLightTheme ? '#0369a1' : '#88eeff';
         }
 
         ctx.strokeStyle = bodyColor;

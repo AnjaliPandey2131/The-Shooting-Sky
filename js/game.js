@@ -25,12 +25,17 @@ import { SpaceBackground } from './spaceBackground.js';
 import { saveGameRun } from './db.js';
 import { getCurrentUser } from './auth.js';
 import { toggleTheme } from './theme.js';
+import { PowerUpManager } from './powerups.js';
+import { GemManager } from './gems.js';
+import { getWorldById, getSavedWorldId } from './worlds.js';
+import { getSavedSkinId } from './skins.js';
 
 export const GAME_STATE = {
     MENU: 0,
     INTRO: 1,
     PLAYING: 2,
-    GAMEOVER: 3
+    GAMEOVER: 3,
+    REVIVE: 4
 };
 
 export class GameEngine {
@@ -57,7 +62,21 @@ export class GameEngine {
         this.coins = new CoinManager();
         this.energy = new EnergyManager();
         this.rageBait = new RageBaitCoinManager();
+        this.powerUps = new PowerUpManager();
+        this.gems = new GemManager();
         this.spaceBackground = new SpaceBackground(CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
+
+        this.activeWorld = getWorldById(getSavedWorldId());
+        this.activeSkinId = getSavedSkinId();
+        this.streakBonusMult = 1.0;
+        this.windTimer = 0;
+        this._lastRunOptions = {};
+        this.availableGems = 0;
+        this.gemsSpentThisRun = 0;
+        this.revivesUsed = 0;
+        this.reviveTimer = 0;
+        this.pendingDeathReason = '';
+        this.reviveOverlay = document.getElementById('revive-overlay');
 
         this.cameraOffset = 0;
         this.introTimer = 0;
@@ -196,6 +215,14 @@ export class GameEngine {
             this.state = GAME_STATE.MENU;
             this._setTouchControlsVisible(false);
             if (this._onReturnToDashboardCb) this._onReturnToDashboardCb();
+        });
+
+        document.getElementById('revive-accept-btn')?.addEventListener('click', () => {
+            if (this.state === GAME_STATE.REVIVE) this._acceptRevive();
+        });
+
+        document.getElementById('revive-skip-btn')?.addEventListener('click', () => {
+            if (this.state === GAME_STATE.REVIVE) this._skipRevive();
         });
     }
 
@@ -380,7 +407,16 @@ export class GameEngine {
         }
     }
 
-    startGame() {
+    startGame(runOptions = null) {
+        if (runOptions) {
+            this._lastRunOptions = runOptions;
+        }
+        const opts = this._lastRunOptions || {};
+        this.activeWorld = getWorldById(opts.worldId || getSavedWorldId());
+        this.activeSkinId = opts.skinId || getSavedSkinId();
+        this.streakBonusMult = (opts.currentStreak || 0) >= 3 ? 1.10 : 1.0;
+        this.windTimer = 0;
+
         if (this._isTouchDevice()) {
             this._requestFullscreen();
         }
@@ -398,6 +434,17 @@ export class GameEngine {
         this.difficulty.reset();
         this.coins.reset();
         this.rageBait.reset(sound);
+        this.powerUps.reset();
+        this.gems.reset();
+        this.availableGems = Math.max(0, Math.floor(opts.totalGems || 0));
+        this.gemsSpentThisRun = 0;
+        this.revivesUsed = 0;
+        this.reviveTimer = 0;
+        this.pendingDeathReason = '';
+        if (this.reviveOverlay) this.reviveOverlay.classList.add('hidden');
+        this.ui.updateGemHUD(this.availableGems);
+        this.spaceBackground.setWorld(this.activeWorld.id);
+        this.spaceBackground.setWindForce(0);
         this.energy.reset();
         this._clearTouchInputs();
 
@@ -409,6 +456,93 @@ export class GameEngine {
     }
 
     gameOver(reason) {
+        if (this.state === GAME_STATE.GAMEOVER || this.state === GAME_STATE.REVIVE) return;
+
+        // Check if player has enough Gems for "Save Me / Revive" (2, 4, 6...)
+        const reviveCost = (this.revivesUsed + 1) * 2;
+        if (this.state === GAME_STATE.PLAYING && this.availableGems >= reviveCost) {
+            this._triggerReviveOffer(reason, reviveCost);
+            return;
+        }
+
+        this._finalizeGameOver(reason);
+    }
+
+    _triggerReviveOffer(reason, cost) {
+        this.state = GAME_STATE.REVIVE;
+        this.pendingDeathReason = reason;
+        this.reviveTimer = 5.0;
+        this._clearTouchInputs();
+        this._setTouchControlsVisible(false);
+        this.rageBait.reset(sound);
+        sound.playImpact();
+        this._triggerShake(8, 0.25);
+
+        const reasonEl = document.getElementById('revive-reason');
+        const btnEl = document.getElementById('revive-accept-btn');
+        if (reasonEl) reasonEl.textContent = reason || 'Continue your cosmic run!';
+        if (btnEl) btnEl.textContent = `💎 REVIVE (${cost} 💎)`;
+        this._updateReviveUI();
+
+        if (this.reviveOverlay) this.reviveOverlay.classList.remove('hidden');
+    }
+
+    _updateReviveUI() {
+        const textEl = document.getElementById('revive-timer-text');
+        const barEl = document.getElementById('revive-bar-fill');
+        const secs = Math.max(0, Math.ceil(this.reviveTimer));
+        const pct = Math.max(0, Math.min(100, (this.reviveTimer / 5.0) * 100));
+        if (textEl) textEl.textContent = `${secs}s`;
+        if (barEl) barEl.style.width = `${pct}%`;
+    }
+
+    _acceptRevive() {
+        const cost = (this.revivesUsed + 1) * 2;
+        if (this.availableGems < cost) {
+            this._skipRevive();
+            return;
+        }
+
+        this.revivesUsed++;
+        this.gemsSpentThisRun += cost;
+        this.availableGems -= cost;
+        this.ui.updateGemHUD(this.availableGems);
+
+        // Clear all active hazards & warnings
+        this.difficulty.hazards = [];
+        this.difficulty.warnings = [];
+
+        // Restore 100% Energy + grant 2.5s blinking invincibility shield
+        this.energy.energy = CONFIG.ENERGY.MAX;
+        this.energy._displayEnergy = CONFIG.ENERGY.MAX;
+        this.energy.shieldActive = true;
+        this.energy.shieldTimer = 2.5;
+
+        // Place player safely above an intact ground segment if they fell
+        const intact = this.platform.segments.filter(s => s.state < 4);
+        if (this.player.y > CONFIG.GROUND_Y - this.player.height || intact.length > 0) {
+            if (this.player.y > CONFIG.GROUND_Y - 10 && intact.length > 0) {
+                const seg = intact[Math.floor(intact.length / 2)];
+                this.player.x = seg.x + seg.width / 2 - this.player.width / 2;
+            }
+            this.player.y = Math.min(this.player.y, CONFIG.GROUND_Y - this.player.height);
+            this.player.vy = 0;
+            this.player.vx = 0;
+        }
+
+        if (this.reviveOverlay) this.reviveOverlay.classList.add('hidden');
+        this.state = GAME_STATE.PLAYING;
+        this._setTouchControlsVisible(true);
+        sound.ensureAudioContext();
+        sound.playRevive();
+    }
+
+    _skipRevive() {
+        if (this.reviveOverlay) this.reviveOverlay.classList.add('hidden');
+        this._finalizeGameOver(this.pendingDeathReason || 'Crushed by a falling hazard!');
+    }
+
+    _finalizeGameOver(reason) {
         if (this.state === GAME_STATE.GAMEOVER) return;
         this.state = GAME_STATE.GAMEOVER;
         this._clearTouchInputs();
@@ -434,6 +568,8 @@ export class GameEngine {
         const stageLevel       = this.difficulty.currentStage.LEVEL;
         const stageName        = this.difficulty.currentStage.NAME;
         const totalCoins       = this.coins.totalCollected;
+        const gemsCollected    = this.gems.totalCollected;
+        const netGemsDelta     = gemsCollected - this.gemsSpentThisRun;
         const intervalCoins    = [...this.energy.intervalCoins];
         const shieldCharges    = this.energy.shieldCharges;
         const shieldsGranted   = this.energy.milestonesGranted.size;
@@ -458,6 +594,8 @@ export class GameEngine {
             this._persistRun({
                 score:               finalScore,
                 coinsCollected:      totalCoins,
+                gemsCollected,
+                netGemsDelta,
                 highestStageReached: stageLevel,
                 highestStageName:    stageName,
                 survivalTime:        Math.round(survivalTime),
@@ -530,6 +668,16 @@ export class GameEngine {
             return;
         }
 
+        if (this.state === GAME_STATE.REVIVE) {
+            this.spaceBackground.update(dt);
+            this.reviveTimer -= dt;
+            this._updateReviveUI();
+            if (this.reviveTimer <= 0) {
+                this._skipRevive();
+            }
+            return;
+        }
+
         this.spaceBackground.update(dt);
 
         if (this.state === GAME_STATE.INTRO) {
@@ -548,8 +696,27 @@ export class GameEngine {
         }
 
         if (this.state === GAME_STATE.PLAYING) {
+            // Mars Storm periodic wind gusts (cycles every 10s, active for 4s)
+            let windForce = 0;
+            if (this.activeWorld.hasWind) {
+                this.windTimer += dt;
+                const cycle = this.windTimer % 10;
+                if (cycle < 4) {
+                    const dir = Math.floor(this.windTimer / 10) % 2 === 0 ? 1 : -1;
+                    windForce = dir * 0.55 * Math.sin((cycle / 4) * Math.PI);
+                }
+            }
+            this.spaceBackground.setWindForce(windForce);
+
             this.energy.update(dt);
-            this.player.update(this.keys, this.platform, this.floatingPlatforms, sound, this.energy);
+            this.player.update(
+                this.keys,
+                this.platform,
+                this.floatingPlatforms,
+                sound,
+                this.energy,
+                { gravityMult: this.activeWorld.gravityMult, windForce }
+            );
 
             if (this.player.y > CONFIG.GROUND_Y + 100) {
                 this.gameOver("Fell into the broken abyss!");
@@ -564,7 +731,8 @@ export class GameEngine {
                 this.coins
             );
 
-            this.difficulty.update(dt, this.particles, this.platform, sound);
+            const hazardSpeedMult = this.activeWorld.hazardSpeedMult * this.powerUps.hazardSpeedMultiplier;
+            this.difficulty.update(dt, this.particles, this.platform, sound, hazardSpeedMult);
 
             if (this.difficulty.levelJustChanged) {
                 this.ui.triggerLevelBanner(this.difficulty.currentStage);
@@ -572,13 +740,30 @@ export class GameEngine {
                 this.spaceBackground.setRegion(regionMap[this.difficulty.currentStageIndex] || 'earth');
             }
 
-            const scoreMultiplier = 1 + (this.difficulty.currentStageIndex * 0.5);
+            const scoreMultiplier = (1 + (this.difficulty.currentStageIndex * 0.5))
+                * this.powerUps.scoreMultiplier
+                * this.streakBonusMult;
             this.score += dt * 100 * scoreMultiplier;
 
             const intervalIndex = Math.min(4, Math.floor(this.difficulty.survivalTime / 30));
             this.coins.update(dt, this.difficulty.survivalTime, this.platform, this.floatingPlatforms);
 
+            // Power-Ups & Gems update + collection + Coin Magnet pull
+            this.powerUps.update(dt, this.platform);
+            this.gems.update(dt);
             const playerHitbox = this.player.getHitbox();
+            this.powerUps.checkPlayerCollection(playerHitbox, sound, this.particles);
+            this.gems.checkPlayerCollection(playerHitbox, sound, this.particles, () => {
+                this.availableGems++;
+                this.ui.updateGemHUD(this.availableGems);
+            });
+            this.powerUps.applyMagnetToCoins(
+                this.coins.coins,
+                this.player.x + this.player.width / 2,
+                this.player.y + this.player.height / 2,
+                dt
+            );
+
             const coinResult = this.coins.checkPlayerCollection(
                 playerHitbox,
                 sound,
@@ -587,7 +772,7 @@ export class GameEngine {
                 this.particles
             );
             if (coinResult.score > 0) {
-                this.score += coinResult.score;
+                this.score += coinResult.score * this.activeWorld.coinMult * this.powerUps.scoreMultiplier;
             }
 
             this.rageBait.update(
@@ -609,7 +794,7 @@ export class GameEngine {
                 intervalIndex,
                 this.particles
             );
-            this.score += rageBaitResult.score;
+            this.score += rageBaitResult.score * this.activeWorld.coinMult * this.powerUps.scoreMultiplier;
 
             for (let hazard of this.difficulty.hazards) {
                 const hazardHitbox = hazard.getHitbox();
@@ -658,6 +843,7 @@ export class GameEngine {
                 this.energy.shieldActive,
                 this.energy.shieldTimer
             );
+            this.ui.updatePowerUpHUD(this.powerUps.active, this.activeWorld, windForce);
 
         } else if (this.state === GAME_STATE.MENU) {
             this.difficulty.update(dt * 0.5, this.particles, this.platform, sound);
@@ -718,6 +904,8 @@ export class GameEngine {
 
         if (this.state === GAME_STATE.PLAYING) {
             this.coins.draw(this.ctx);
+            this.gems.draw(this.ctx);
+            this.powerUps.draw(this.ctx);
             this.rageBait.draw(this.ctx, this.player);
         }
 
@@ -725,7 +913,7 @@ export class GameEngine {
 
         if (this.state === GAME_STATE.PLAYING || this.state === GAME_STATE.MENU) {
             const shieldActive = (this.state === GAME_STATE.PLAYING) && this.energy.shieldActive;
-            this.player.draw(this.ctx, this.energy, shieldActive);
+            this.player.draw(this.ctx, this.energy, shieldActive, this.activeSkinId);
         }
 
         this.ctx.restore();

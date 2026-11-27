@@ -20,10 +20,10 @@ export class Hazard {
         this.rotSpeed = (Math.random() - 0.5) * 0.08;
     }
 
-    update(particleSystem) {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.rotation += this.rotSpeed;
+    update(particleSystem, speedMult = 1.0) {
+        this.x += this.vx * speedMult;
+        this.y += this.vy * speedMult;
+        this.rotation += this.rotSpeed * speedMult;
 
         if (this.y - this.radius > CONFIG.CANVAS_HEIGHT ||
             this.x + this.radius < -50 ||
@@ -49,8 +49,8 @@ export class ShootingStar extends Hazard {
         super(x, -20, CONFIG.HAZARDS.SHOOTING_STAR.RADIUS, vx, speed, CONFIG.HAZARDS.SHOOTING_STAR.COLOR, CONFIG.HAZARDS.SHOOTING_STAR.SCORE_VALUE);
     }
 
-    update(particleSystem) {
-        super.update(particleSystem);
+    update(particleSystem, speedMult = 1.0) {
+        super.update(particleSystem, speedMult);
         if (Math.random() < 0.6) {
             particleSystem.createTrail(this.x, this.y, '#00f0ff', 2.5);
         }
@@ -88,8 +88,8 @@ export class Hailstone extends Hazard {
         super(x, -15, CONFIG.HAZARDS.HAILSTONE.RADIUS, (Math.random() - 0.5) * 1.5, speed, CONFIG.HAZARDS.HAILSTONE.COLOR, CONFIG.HAZARDS.HAILSTONE.SCORE_VALUE);
     }
 
-    update(particleSystem) {
-        super.update(particleSystem);
+    update(particleSystem, speedMult = 1.0) {
+        super.update(particleSystem, speedMult);
         if (Math.random() < 0.4) {
             particleSystem.createTrail(this.x, this.y, '#a5f3fc', 2);
         }

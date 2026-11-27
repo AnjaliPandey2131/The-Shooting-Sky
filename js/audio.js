@@ -24,7 +24,6 @@ class SoundManager {
         // Track active nodes (to limit overlap)
         this.activeNodes = 0;
         this.MAX_NODES = 12;
-        this.rageBaitUtterance = null;
     }
 
     _loadMuted() {
@@ -357,31 +356,91 @@ class SoundManager {
         });
     }
 
+    playPowerUp() {
+        if (this.muted) return;
+        this.ensureAudioContext();
+        if (!this.ctx) return;
+
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5 E5 G5 C6
+        notes.forEach((freq, idx) => {
+            this._makeOsc('sine', freq, 0.14, 0.18, 0, idx * 0.05);
+        });
+    }
+
+    playGem() {
+        if (this.muted) return;
+        this.ensureAudioContext();
+        if (!this.ctx) return;
+
+        const notes = [1046.50, 1318.51, 1567.98]; // C6 E6 G6 crystal shimmer
+        notes.forEach((freq, idx) => {
+            this._makeOsc('sine', freq, 0.14, 0.22, 0, idx * 0.045);
+        });
+    }
+
+    playRevive() {
+        if (this.muted) return;
+        this.ensureAudioContext();
+        if (!this.ctx) return;
+
+        const notes = [392.00, 523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((freq, idx) => {
+            this._makeOsc('triangle', freq, 0.14, 0.28, 0, idx * 0.055);
+        });
+    }
+
     playRageBaitReaction(reaction, _dialogue = '') {
         if (this.muted) return;
         this.ensureAudioContext();
         if (!this.ctx) return;
-        this._playRageBaitTone(reaction);
+
+        if (reaction === 'collected') {
+            this._makeOsc('sine', 659.25, 0.11, 0.14, 0, 0);
+            this._makeOsc('triangle', 987.77, 0.11, 0.20, 0, 0.07);
+            return;
+        }
+
+        this._playTeasingLaugh(reaction);
+    }
+
+    /**
+     * Playful, cheeky arcade chuckle ("he-he-he!") using soft filtered
+     * triangle/sine notes with gentle pitch bend.
+     */
+    _playTeasingLaugh(reaction) {
+        if (this.muted || !this.ctx) return;
+
+        const baseNotes = reaction === 'escaped'
+            ? [520, 620, 560, 440]
+            : [480, 560, 640, 540];
+
+        const bandpass = this.ctx.createBiquadFilter();
+        bandpass.type = 'bandpass';
+        bandpass.frequency.setValueAtTime(1100, this.ctx.currentTime);
+        bandpass.Q.setValueAtTime(1.1, this.ctx.currentTime);
+        bandpass.connect(this._out());
+
+        baseNotes.forEach((freq, idx) => {
+            const start = this.ctx.currentTime + idx * 0.085;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = idx % 2 === 0 ? 'triangle' : 'sine';
+            osc.frequency.setValueAtTime(freq * 0.92, start);
+            osc.frequency.exponentialRampToValueAtTime(freq * 1.06, start + 0.065);
+
+            gain.gain.setValueAtTime(0.0001, start);
+            gain.gain.linearRampToValueAtTime(0.09, start + 0.014);
+            gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.08);
+
+            osc.connect(gain);
+            gain.connect(bandpass);
+            osc.start(start);
+            osc.stop(start + 0.09);
+        });
     }
 
     stopRageBaitSpeech() {
-        this.rageBaitUtterance = null;
-    }
-
-    _playRageBaitTone(reaction) {
-        if (this.muted || !this.ctx) return;
-
-        const phrases = {
-            appear:    [523.25, 659.25],
-            escaped:   [440.00, 329.63],
-            collected: [659.25, 987.77],
-            laugh:     [587.33, 493.88],
-            close:     [783.99, 587.33]
-        }[reaction];
-        if (!phrases) return;
-
-        this._makeOsc('sine', phrases[0], 0.08, 0.12, 0, 0);
-        this._makeOsc('triangle', phrases[1], 0.07, 0.16, 0, 0.08);
+        // No-op kept for backward compatibility with GameEngine.showMenu()
     }
 
     /**

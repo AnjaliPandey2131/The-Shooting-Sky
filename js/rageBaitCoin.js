@@ -7,63 +7,31 @@ import { CONFIG } from './config.js';
 import { TILE_STATE } from './floatingPlatforms.js';
 
 const TAUNT_LINES = [
-    'Catch me if you can!',
-    'Oiii! Over here!',
-    "Bet you can't catch me!",
-    'Come on, slowpoke!',
-    'Too slow already?',
-    'You want me? Come GET me!',
-    'Hehehe! Try harder!',
-    "I'm right here, genius!",
-    'Ready, steady... TOO SLOW!',
-    "You can't catch what you can't handle!"
+    'Too slow!',
+    'Catch me!',
+    'Over here!',
+    'Nice try!',
+    'Come get it!'
 ];
 
 const ESCAPE_LINES = [
-    'OIIII, LOSER!',
-    'Missed me again! HAHAHA!',
-    'No guts, no coins!',
-    'Skill issue, bestie!',
-    'I WAS RIGHT THERE!',
-    'Too slow! Too slow!',
-    'Awww, you almost had me!',
-    "You don't have the guts!",
-    'Better luck next lifetime!',
-    'Hehehe! I escaped!',
-    'Catch me in your dreams!',
-    'BYEEEE, SLOWPOKE!',
-    'That was embarrassing!',
-    'You blinked. I won.',
-    'Your reflexes need a vacation!',
-    'Hehehehe!',
-    'MUAHAHA!',
-    'Hahahaha!',
-    'Nyehehehe!',
-    'Heh. HEH. HAHAHA!'
+    'Missed me!',
+    'Too slow!',
+    'Maybe next time!',
+    'See ya!'
 ];
 
 const COLLECTION_LINES = [
-    'WAIT—YOU GOT ME?!',
-    "Okayyy, I'm impressed!",
-    'Well played, speedster!',
-    'Fine. You earned that one.',
-    'Lucky catch! ...Probably.',
-    'UGH! NICE ONE!',
-    'Okay, show-off!',
-    'I underestimated you!',
-    'Not bad, human!',
-    'You actually did it!',
-    'Respect. Just this once.',
-    "I'm telling my lawyer!",
-    'WHAT?! MY PLAN FAILED!',
-    'Okay, that was FAST!',
-    'You win this round!'
+    'Whoa, nice catch!',
+    'You got me!',
+    'Well played!',
+    'Too fast!'
 ];
 
 const TAUNT_FACES = ['smug', 'wink', 'laugh', 'tongue', 'fakeCrying', 'angry'];
-const ENTRANCE_LINES = ['PSST! CATCH ME!', 'OI! OVER HERE!', 'YOU WANT THIS?', 'TRY AND CATCH ME!'];
-const MID_ENCOUNTER_LINES = ['Hehehe!', 'Nyehehe!', 'Too slow!'];
-const CLOSE_LINES = ['Whoa, close one!', 'Easy there, speedster!'];
+const ENTRANCE_LINES = ['Catch me!', 'Over here!', 'Come get it!'];
+const MID_ENCOUNTER_LINES = ['Too slow!', 'Nice try!'];
+const CLOSE_LINES = ['So close!', 'Almost!'];
 const TIMER_EPSILON = 1e-8;
 
 function pickDifferent(items, previous) {
@@ -850,14 +818,18 @@ function drawDialogue(ctx, coin, player, centerY) {
         }
     }
 
-    ctx.fillStyle = 'rgba(35, 20, 4, 0.88)';
+    ctx.fillStyle = 'rgba(10, 14, 28, 0.94)';
     ctx.strokeStyle = '#ffd447';
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+    ctx.shadowBlur = 8;
     ctx.beginPath();
-    ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 7);
+    ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
     ctx.fill();
+    ctx.shadowBlur = 0;
     ctx.stroke();
-    ctx.fillStyle = '#fff4c2';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 13px Outfit, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     lines.forEach((item, index) => {

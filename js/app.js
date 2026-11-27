@@ -9,7 +9,8 @@ import { initAuth, onAuthChange, getCurrentUser } from './auth.js';
 import { migrateLocalScore }                       from './db.js';
 import { showLoginScreen, hideLoginScreen }        from './login.js';
 import { showDashboard, hideDashboard,
-         setStartGameCallback, refreshDashboardAfterGame } from './dashboard.js';
+         setStartGameCallback, refreshDashboardAfterGame,
+         getActiveWorldId, getActiveStreak, getActiveGems, getActiveSkinId } from './dashboard.js';
 import { GameEngine }                              from './game.js';
 import { CONFIG }                                  from './config.js';
 import { initTheme }                               from './theme.js';
@@ -88,7 +89,12 @@ function _startGame() {
         _gameEngine.startLoop();
     }
     // Launch directly into gameplay for a streamlined flow
-    _gameEngine.startGame();
+    _gameEngine.startGame({
+        worldId:       getActiveWorldId(),
+        currentStreak: getActiveStreak(),
+        totalGems:     getActiveGems(),
+        skinId:        getActiveSkinId()
+    });
 }
 
 // ── Game-over hook ────────────────────────────────────────────────────────────

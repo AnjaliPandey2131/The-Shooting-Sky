@@ -5,18 +5,42 @@
    ------------------------------------------------------------- */
 
 import { signOutUser }                from './auth.js';
-import { loadUserProfile, fetchRecentRuns, fetchLeaderboard, syncLeaderboardEntry } from './db.js';
+import { loadUserProfile, fetchRecentRuns, fetchLeaderboard, syncLeaderboardEntry, saveSelectedWorld, unlockAndEquipSkin, equipSkin } from './db.js';
 import { toggleTheme, getTheme }      from './theme.js';
 import { sound }                      from './audio.js';
+import { WORLDS, isWorldUnlocked, getSavedWorldId, saveLocalWorldId } from './worlds.js';
+import { SKINS, getSavedSkinId, saveLocalSkinId } from './skins.js';
+import { MISSION_DEFS, normalizeDailyMissions } from './missions.js';
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let _dashScreen    = null;
-let _user          = null;
-let _lastRunDoc    = null;
-let _hasMore       = false;
-let _startGameCb   = null;
+let _dashScreen     = null;
+let _user           = null;
+let _lastRunDoc     = null;
+let _hasMore        = false;
+let _startGameCb    = null;
+let _selectedWorld  = getSavedWorldId();
+let _selectedSkin   = getSavedSkinId();
+let _currentStreak  = 0;
+let _totalGems      = 0;
+let _cachedProfile  = null;
 
 // ── Public API ────────────────────────────────────────────────────────────────
+export function getActiveWorldId() {
+    return _selectedWorld;
+}
+
+export function getActiveStreak() {
+    return _currentStreak;
+}
+
+export function getActiveGems() {
+    return _totalGems;
+}
+
+export function getActiveSkinId() {
+    return _selectedSkin;
+}
+
 export function setStartGameCallback(cb) {
     _startGameCb = cb;
 }
@@ -68,9 +92,10 @@ function _build() {
                 </button>
 
                 <div class="dash-nav">
-                    <div class="nav-item active" data-panel="stats">📊 My Stats</div>
-                    <div class="nav-item" data-panel="history">📋 Game History</div>
-                    <div class="nav-item" data-panel="leaderboard">🏆 Leaderboard</div>
+                    <div class="nav-item active" data-panel="stats">📊 Stats</div>
+                    <div class="nav-item" data-panel="history">📋 History</div>
+                    <div class="nav-item" data-panel="leaderboard">🏆 Top 10</div>
+                    <div class="nav-item" data-panel="armory">🎨 Armory</div>
                 </div>
 
                 <div class="dash-controls-row">
@@ -89,12 +114,33 @@ function _build() {
             <main class="dash-main">
                 <!-- Stats panel -->
                 <div id="dash-panel-stats" class="dash-panel active">
-                    <h2 class="dash-heading">Your Cosmic Journey</h2>
+                    <div class="dash-heading-row">
+                        <h2 class="dash-heading">Your Cosmic Journey</h2>
+                        <span id="dash-streak-badge" class="streak-bonus-badge hidden">🔥 Streak Bonus Active (+10% Score)</span>
+                    </div>
+
+                    <!-- World Selector -->
+                    <div class="world-selector-wrap">
+                        <div class="world-selector-title">🌌 SELECT WORLD</div>
+                        <div id="dash-world-grid" class="world-grid"></div>
+                    </div>
+
+                    <!-- Daily Mini-Missions -->
+                    <div class="missions-wrap glass-panel">
+                        <div class="missions-header">
+                            <span class="world-selector-title" style="margin-bottom:0">🎯 DAILY MISSIONS</span>
+                            <span class="missions-sub">Resets daily</span>
+                        </div>
+                        <div id="dash-missions-list" class="missions-list"></div>
+                    </div>
+
                     <div class="stats-cards" id="dash-stats-cards">
                         ${_statCardHTML('🏆', 'Best Score',       'dash-best-score',  '—')}
                         ${_statCardHTML('🎯', 'Last Score',        'dash-prev-score',  '—')}
+                        ${_statCardHTML('🔥', 'Daily Streak',      'dash-streak',      '0 Days')}
                         ${_statCardHTML('🎮', 'Games Played',      'dash-total-games', '—')}
                         ${_statCardHTML('🪙', 'Coins Collected',   'dash-total-coins', '—')}
+                        ${_statCardHTML('💎', 'Gems',              'dash-total-gems',  '0')}
                         ${_statCardHTML('🌌', 'Highest Stage',     'dash-high-stage',  '—')}
                         ${_statCardHTML('⏱', 'Total Playtime',    'dash-total-time',  '—')}
                     </div>
@@ -123,6 +169,15 @@ function _build() {
                     <div id="dash-leaderboard-list" class="leaderboard-list">
                         <div class="history-loading">Loading…</div>
                     </div>
+                </div>
+
+                <!-- Armory / Skins panel -->
+                <div id="dash-panel-armory" class="dash-panel">
+                    <div class="dash-heading-row">
+                        <h2 class="dash-heading">Stickman Armory</h2>
+                        <span id="armory-coin-balance" class="armory-balance">🪙 0 Coins</span>
+                    </div>
+                    <div id="dash-armory-grid" class="armory-grid"></div>
                 </div>
             </main>
         </div>
@@ -197,6 +252,8 @@ function _bindDashEvents() {
                 _loadHistory(true);
             } else if (item.dataset.panel === 'leaderboard') {
                 _loadLeaderboard();
+            } else if (item.dataset.panel === 'armory') {
+                _renderArmory(_cachedProfile);
             }
         });
     });
@@ -221,14 +278,41 @@ async function _loadAndRender() {
     try {
         const profile = await loadUserProfile(_user.uid);
         if (!profile) return;
+        _cachedProfile = profile;
 
         _set('dash-best-score',  profile.bestScore    > 0 ? profile.bestScore.toLocaleString() : '—');
         _set('dash-prev-score',  profile.previousScore > 0 ? profile.previousScore.toLocaleString() : '—');
         _set('dash-total-games', profile.totalGames   > 0 ? profile.totalGames : '—');
         _set('dash-total-coins', profile.totalCoins   > 0 ? profile.totalCoins.toLocaleString() : '—');
+        _totalGems = profile.totalGems || 0;
+        _set('dash-total-gems', _totalGems.toLocaleString());
         _set('dash-high-stage',  profile.highestStage > 0 ? `Stage ${profile.highestStage}` : '—');
         _set('dash-total-time',  profile.totalSurvivalTime > 0
             ? _fmtTime(profile.totalSurvivalTime) : '—');
+
+        // Daily Streak
+        _currentStreak = profile.currentStreak || 0;
+        const bestStreak = profile.bestStreak || 0;
+        _set('dash-streak', _currentStreak > 0
+            ? `${_currentStreak} Day${_currentStreak === 1 ? '' : 's'}${bestStreak > _currentStreak ? ` (Best ${bestStreak})` : ''}`
+            : '0 Days');
+        document.getElementById('dash-streak-badge')?.classList.toggle('hidden', _currentStreak < 3);
+
+        // Selected World & Unlock status
+        if (profile.selectedWorld && WORLDS.some(w => w.id === profile.selectedWorld)) {
+            const wObj = WORLDS.find(w => w.id === profile.selectedWorld);
+            if (isWorldUnlocked(wObj, profile.bestScore || 0, profile.totalCoins || 0, profile.unlockedWorlds)) {
+                _selectedWorld = profile.selectedWorld;
+                saveLocalWorldId(_selectedWorld);
+            }
+        }
+        if (profile.selectedSkin && SKINS.some(s => s.id === profile.selectedSkin)) {
+            _selectedSkin = profile.selectedSkin;
+            saveLocalSkinId(_selectedSkin);
+        }
+        _renderWorldSelector(profile);
+        _renderDailyMissions(profile);
+        _renderArmory(profile);
 
         const isEmpty = profile.totalGames === 0;
         document.getElementById('dash-empty-stats')?.classList.toggle('hidden', !isEmpty);
@@ -245,6 +329,205 @@ async function _loadAndRender() {
     } catch (err) {
         console.error('[Dashboard] Failed to load profile:', err);
     }
+}
+
+// ── Render 4 Unlockable Worlds ────────────────────────────────────────────────
+function _renderWorldSelector(profile) {
+    const grid = document.getElementById('dash-world-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    const bestScore = profile?.bestScore || 0;
+    const totalCoins = profile?.totalCoins || 0;
+    const unlockedList = profile?.unlockedWorlds || ['earth'];
+
+    WORLDS.forEach(world => {
+        const unlocked = isWorldUnlocked(world, bestScore, totalCoins, unlockedList);
+        const selected = unlocked && _selectedWorld === world.id;
+
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = `world-card glass-panel${selected ? ' selected' : ''}${!unlocked ? ' locked' : ''}`;
+        card.disabled = !unlocked;
+
+        const top = document.createElement('div');
+        top.className = 'world-card-top';
+        top.textContent = `${world.icon} ${world.name}`;
+
+        const sub = document.createElement('div');
+        sub.className = 'world-card-sub';
+        if (unlocked) {
+            sub.textContent = selected ? `✓ ${world.twistLabel}` : world.twistLabel;
+        } else {
+            sub.textContent = `🔒 ${world.unlockScore.toLocaleString()} pts or ${world.unlockCoins} 🪙`;
+        }
+
+        card.appendChild(top);
+        card.appendChild(sub);
+
+        if (unlocked) {
+            card.addEventListener('click', () => {
+                _selectedWorld = world.id;
+                saveLocalWorldId(world.id);
+                if (_user) saveSelectedWorld(_user.uid, world.id);
+                if (profile.selectedSkin && SKINS.some(s => s.id === profile.selectedSkin)) {
+            _selectedSkin = profile.selectedSkin;
+            saveLocalSkinId(_selectedSkin);
+        }
+        _renderWorldSelector(profile);
+        _renderDailyMissions(profile);
+        _renderArmory(profile);
+            });
+        }
+
+        grid.appendChild(card);
+    });
+}
+
+// ── Render 3 Daily Mini-Missions ──────────────────────────────────────────────
+function _getLocalTodayStr() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+function _renderDailyMissions(profile) {
+    const list = document.getElementById('dash-missions-list');
+    if (!list) return;
+    list.innerHTML = '';
+
+    const state = normalizeDailyMissions(profile?.dailyMissions, _getLocalTodayStr());
+
+    MISSION_DEFS.forEach(m => {
+        const prog = Math.min(m.target, state.progress[m.id] || 0);
+        const done = Boolean(state.completed[m.id]);
+        const pct = Math.round((prog / m.target) * 100);
+
+        const row = document.createElement('div');
+        row.className = `mission-row${done ? ' completed' : ''}`;
+
+        const top = document.createElement('div');
+        top.className = 'mission-top';
+
+        const titleEl = document.createElement('span');
+        titleEl.className = 'mission-title';
+        titleEl.textContent = m.title;
+
+        const rightEl = document.createElement('span');
+        rightEl.className = done ? 'mission-done-badge' : 'mission-reward';
+        rightEl.textContent = done ? '✓ Completed' : `+${m.reward} 🪙`;
+
+        top.appendChild(titleEl);
+        top.appendChild(rightEl);
+
+        const barWrap = document.createElement('div');
+        barWrap.className = 'mission-bar-row';
+
+        const barOuter = document.createElement('div');
+        barOuter.className = 'mission-bar-outer';
+        const barFill = document.createElement('div');
+        barFill.className = 'mission-bar-fill';
+        barFill.style.width = `${pct}%`;
+        barOuter.appendChild(barFill);
+
+        const countEl = document.createElement('span');
+        countEl.className = 'mission-count';
+        countEl.textContent = `${prog}/${m.target}`;
+
+        barWrap.appendChild(barOuter);
+        barWrap.appendChild(countEl);
+
+        row.appendChild(top);
+        row.appendChild(barWrap);
+        list.appendChild(row);
+    });
+}
+
+// ── Render Stickman Armory / Skins Shop ───────────────────────────────────────
+function _renderArmory(profile) {
+    const grid = document.getElementById('dash-armory-grid');
+    const balEl = document.getElementById('armory-coin-balance');
+    if (!grid) return;
+
+    const totalCoins = profile?.totalCoins || 0;
+    const unlocked = new Set(Array.isArray(profile?.unlockedSkins) ? profile.unlockedSkins : ['cyan']);
+    unlocked.add('cyan');
+
+    if (balEl) balEl.textContent = `🪙 ${totalCoins.toLocaleString()} Coins`;
+    grid.innerHTML = '';
+
+    SKINS.forEach(skin => {
+        const isUnlocked = unlocked.has(skin.id) || skin.cost === 0;
+        const isEquipped = isUnlocked && _selectedSkin === skin.id;
+        const canAfford = totalCoins >= skin.cost;
+
+        const card = document.createElement('div');
+        card.className = `skin-card glass-panel${isEquipped ? ' equipped' : ''}`;
+
+        const swatch = document.createElement('div');
+        swatch.className = 'skin-swatch';
+        swatch.style.background = `radial-gradient(circle, ${skin.bodyDark} 25%, ${skin.glow} 100%)`;
+        swatch.style.boxShadow = `0 0 14px ${skin.glow}`;
+
+        const info = document.createElement('div');
+        info.className = 'skin-info';
+        const nameEl = document.createElement('div');
+        nameEl.className = 'skin-name';
+        nameEl.textContent = skin.name;
+        const descEl = document.createElement('div');
+        descEl.className = 'skin-desc';
+        descEl.textContent = skin.desc;
+        info.appendChild(nameEl);
+        info.appendChild(descEl);
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = isEquipped ? 'secondary-btn skin-btn' : 'primary-btn skin-btn';
+
+        if (isEquipped) {
+            btn.textContent = '✓ Equipped';
+            btn.disabled = true;
+        } else if (isUnlocked) {
+            btn.textContent = 'Equip';
+            btn.addEventListener('click', async () => {
+                _selectedSkin = skin.id;
+                saveLocalSkinId(skin.id);
+                if (_cachedProfile) _cachedProfile.selectedSkin = skin.id;
+                _renderArmory(_cachedProfile);
+                if (_user) await equipSkin(_user.uid, skin.id);
+            });
+        } else {
+            btn.textContent = `Unlock (${skin.cost} 🪙)`;
+            btn.disabled = !canAfford;
+            btn.addEventListener('click', async () => {
+                if (!_user || !canAfford) return;
+                btn.disabled = true;
+                btn.textContent = 'Unlocking…';
+                try {
+                    const res = await unlockAndEquipSkin(_user.uid, skin.id, skin.cost);
+                    _selectedSkin = res.selectedSkin;
+                    saveLocalSkinId(res.selectedSkin);
+                    if (_cachedProfile) {
+                        _cachedProfile.totalCoins = res.totalCoins;
+                        _cachedProfile.unlockedSkins = res.unlockedSkins;
+                        _cachedProfile.selectedSkin = res.selectedSkin;
+                    }
+                    _set('dash-total-coins', res.totalCoins > 0 ? res.totalCoins.toLocaleString() : '—');
+                    _renderArmory(_cachedProfile);
+                } catch (err) {
+                    console.warn('[Armory] Unlock failed:', err.message);
+                    _renderArmory(_cachedProfile);
+                }
+            });
+        }
+
+        card.appendChild(swatch);
+        card.appendChild(info);
+        card.appendChild(btn);
+        grid.appendChild(card);
+    });
 }
 
 // ── Load Top 10 Leaderboard ───────────────────────────────────────────────────
