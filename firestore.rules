@@ -33,6 +33,16 @@ service cloud.firestore {
       }
     }
 
+    // ── Global Leaderboard (public to authenticated players, no emails) ────
+    // Authenticated users can read Top 10 scores, but can only write their own entry.
+    match /leaderboard/{userId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+                            && request.auth.uid == userId
+                            && _validLeaderboardEntry();
+      allow delete: if false;
+    }
+
     // ── Reject everything else ─────────────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;
@@ -76,6 +86,16 @@ service cloud.firestore {
                                           && d.highestStageReached <= 5
           && d.survivalTime       is int  && d.survivalTime       >= 0
           && d.gameStatus         is string;
+    }
+
+    function _validLeaderboardEntry() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['uid','displayName','bestScore','highestStage','updatedAt'])
+          && d.keys().hasOnly(['uid','displayName','bestScore','highestStage','updatedAt'])
+          && d.uid          == request.auth.uid
+          && d.displayName  is string
+          && d.bestScore    is int && d.bestScore    >= 0
+          && d.highestStage is int && d.highestStage >= 1 && d.highestStage <= 5;
     }
   }
 }

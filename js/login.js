@@ -4,6 +4,7 @@
    ------------------------------------------------------------- */
 
 import { signInWithGoogle } from './auth.js';
+import { toggleTheme, getTheme } from './theme.js';
 
 // ── DOM references ────────────────────────────────────────────────────────────
 let _loginScreen   = null;
@@ -24,10 +25,15 @@ export function hideLoginScreen() {
 
 // ── Build the DOM node once ───────────────────────────────────────────────────
 function _build() {
+    const isLight = getTheme() === 'light';
     _loginScreen = document.createElement('div');
     _loginScreen.id = 'login-screen';
     _loginScreen.innerHTML = `
         <div class="login-stars" id="login-stars-bg"></div>
+        <button id="login-theme-btn" class="theme-toggle-btn floating-theme-btn" data-theme-toggle type="button" title="Toggle Theme">
+            <span class="theme-icon">${isLight ? '☀️' : '🌙'}</span>
+            <span class="theme-label">${isLight ? 'Solar Sky' : 'Midnight Space'}</span>
+        </button>
         <div class="login-card glass-panel">
             <div class="login-logo-wrap">
                 <div class="login-title-glow">SHOOTING</div>
@@ -71,6 +77,7 @@ function _build() {
     _loadingEl  = document.getElementById('login-loading');
 
     _signInBtn.addEventListener('click', _handleSignIn);
+    document.getElementById('login-theme-btn')?.addEventListener('click', () => toggleTheme());
 }
 
 // ── Animated star background ──────────────────────────────────────────────────

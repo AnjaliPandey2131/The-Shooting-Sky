@@ -4,10 +4,12 @@
    + Funny stickman cartoon sounds for movement, jump, coins, death
    ------------------------------------------------------------- */
 
+const MUTE_STORAGE_KEY = 'shooting_stars_muted';
+
 class SoundManager {
     constructor() {
         this.ctx = null;
-        this.muted = false;
+        this.muted = this._loadMuted();
         this.initialized = false;
 
         // Cooldown system — prevent sound spam
@@ -15,10 +17,28 @@ class SoundManager {
         this.MOVE_SOUND_INTERVAL = 0.45; // seconds between movement sounds
         this.lastMoveSoundTime = 0;
 
+        // Coin combo tracking
+        this.coinComboCount = 0;
+        this.lastCoinTime = 0;
+
         // Track active nodes (to limit overlap)
         this.activeNodes = 0;
-        this.MAX_NODES = 8;
+        this.MAX_NODES = 12;
         this.rageBaitUtterance = null;
+    }
+
+    _loadMuted() {
+        try {
+            return localStorage.getItem(MUTE_STORAGE_KEY) === 'true';
+        } catch (e) {
+            return false;
+        }
+    }
+
+    _saveMuted() {
+        try {
+            localStorage.setItem(MUTE_STORAGE_KEY, this.muted ? 'true' : 'false');
+        } catch (e) {}
     }
 
     init() {
@@ -44,7 +64,23 @@ class SoundManager {
     toggleMute() {
         this.muted = !this.muted;
         if (this.muted) this.stopRageBaitSpeech();
+        this._saveMuted();
+        this.syncMuteUI();
         return this.muted;
+    }
+
+    /** Sync all mute toggle buttons across HUD and Dashboard. */
+    syncMuteUI() {
+        const icon = this.muted ? '🔇' : '🔊';
+        const label = this.muted ? 'Sound Off' : 'Sound On';
+        document.querySelectorAll('[data-mute-icon]').forEach(el => {
+            el.textContent = icon;
+        });
+        document.querySelectorAll('[data-mute-label]').forEach(el => {
+            el.textContent = label;
+        });
+        const hudIcon = document.getElementById('audio-icon');
+        if (hudIcon) hudIcon.textContent = icon;
     }
 
     /** Helper: Create and connect a basic oscillator node */
@@ -78,45 +114,45 @@ class SoundManager {
         this.ensureAudioContext();
         if (!this.ctx) return;
 
-        // Random variant for funny personality
-        const variant = Math.floor(Math.random() * 3);
-        const pitchShift = (Math.random() - 0.5) * 60; // slight pitch randomization
+        const t = this.ctx.currentTime;
+        const pitchShift = (Math.random() - 0.5) * 30;
 
-        if (variant === 0) {
-            // "Boing!" — springy bounce
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(200 + pitchShift, this.ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(600 + pitchShift, this.ctx.currentTime + 0.12);
-            osc.frequency.exponentialRampToValueAtTime(300 + pitchShift, this.ctx.currentTime + 0.25);
-            gain.gain.setValueAtTime(0.22, this.ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.3);
-            osc.connect(gain); gain.connect(this.ctx.destination);
-            osc.start(); osc.stop(this.ctx.currentTime + 0.3);
-        } else if (variant === 1) {
-            // "Hup!" — punchy short whoosh
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(350 + pitchShift, this.ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(700 + pitchShift, this.ctx.currentTime + 0.08);
-            gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.18);
-            osc.connect(gain); gain.connect(this.ctx.destination);
-            osc.start(); osc.stop(this.ctx.currentTime + 0.18);
-        } else {
-            // "Wheee!" — gliding whine upward
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(180 + pitchShift, this.ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(850 + pitchShift, this.ctx.currentTime + 0.22);
-            gain.gain.setValueAtTime(0.18, this.ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.28);
-            osc.connect(gain); gain.connect(this.ctx.destination);
-            osc.start(); osc.stop(this.ctx.currentTime + 0.28);
+        // Soft upward whoosh (filtered noise + smooth sine sweep)
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(220 + pitchShift, t);
+        osc.frequency.exponentialRampToValueAtTime(580 + pitchShift, t + 0.14);
+        gain.gain.setValueAtTime(0.01, t);
+        gain.gain.linearRampToValueAtTime(0.18, t + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.19);
+
+        // Subtle airy whoosh layer
+        const bufferSize = Math.floor(this.ctx.sampleRate * 0.14);
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
         }
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(600, t);
+        filter.frequency.exponentialRampToValueAtTime(1800, t + 0.14);
+        filter.Q.value = 1.8;
+        const nGain = this.ctx.createGain();
+        nGain.gain.setValueAtTime(0.09, t);
+        nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+        noise.connect(filter);
+        filter.connect(nGain);
+        nGain.connect(this.ctx.destination);
+        noise.start(t);
+        noise.stop(t + 0.14);
     }
 
     playImpact() {
@@ -148,15 +184,15 @@ class SoundManager {
         filter.connect(gain);
         gain.connect(this.ctx.destination);
 
-        // Sub oscillator for bass thump
+        // Sub oscillator for punchy low-end impact thud
         const osc = this.ctx.createOscillator();
         const subGain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(130, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.25);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(160, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(34, this.ctx.currentTime + 0.32);
 
-        subGain.gain.setValueAtTime(0.5, this.ctx.currentTime);
-        subGain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+        subGain.gain.setValueAtTime(0.6, this.ctx.currentTime);
+        subGain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.34);
 
         osc.connect(subGain);
         subGain.connect(this.ctx.destination);
@@ -164,7 +200,7 @@ class SoundManager {
         noise.start();
         osc.start();
         noise.stop(this.ctx.currentTime + 0.25);
-        osc.stop(this.ctx.currentTime + 0.25);
+        osc.stop(this.ctx.currentTime + 0.35);
     }
 
     playCrack() {
@@ -194,23 +230,26 @@ class SoundManager {
         this.ensureAudioContext();
         if (!this.ctx) return;
 
-        const notes = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5
+        // Short celebratory synth arpeggio (C5 - E5 - G5 - C6)
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        const t = this.ctx.currentTime;
         notes.forEach((freq, idx) => {
+            const start = t + idx * 0.065;
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
 
             osc.type = 'triangle';
-            osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.08);
+            osc.frequency.setValueAtTime(freq, start);
 
-            gain.gain.setValueAtTime(0, this.ctx.currentTime + idx * 0.08);
-            gain.gain.linearRampToValueAtTime(0.2, this.ctx.currentTime + idx * 0.08 + 0.02);
-            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + idx * 0.08 + 0.25);
+            gain.gain.setValueAtTime(0.001, start);
+            gain.gain.linearRampToValueAtTime(0.18, start + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + 0.24);
 
             osc.connect(gain);
             gain.connect(this.ctx.destination);
 
-            osc.start(this.ctx.currentTime + idx * 0.08);
-            osc.stop(this.ctx.currentTime + idx * 0.08 + 0.25);
+            osc.start(start);
+            osc.stop(start + 0.25);
         });
     }
 
@@ -346,37 +385,71 @@ class SoundManager {
     }
 
     /**
-     * "Coin collect!" — bright ping + tiny celebration
+     * "Coin collect!" — bright chime whose pitch rises with consecutive coins
      */
     playCoin() {
         if (this.muted) return;
         this.ensureAudioContext();
         if (!this.ctx) return;
 
-        const t = this.ctx.currentTime;
-        const pitchShift = (Math.random() - 0.5) * 40;
+        const now = performance.now() / 1000;
+        if (now - this.lastCoinTime < 2.6) {
+            this.coinComboCount = Math.min(10, this.coinComboCount + 1);
+        } else {
+            this.coinComboCount = 0;
+        }
+        this.lastCoinTime = now;
 
-        // Main coin ping — ascending
+        const t = this.ctx.currentTime;
+        const comboBoost = this.coinComboCount * 55;
+        const baseFreq = 920 + comboBoost;
+
+        // Crisp primary chime
         const osc1 = this.ctx.createOscillator();
         const g1 = this.ctx.createGain();
         osc1.type = 'sine';
-        osc1.frequency.setValueAtTime(880 + pitchShift, t);
-        osc1.frequency.exponentialRampToValueAtTime(1760 + pitchShift, t + 0.08);
-        g1.gain.setValueAtTime(0.25, t);
-        g1.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+        osc1.frequency.setValueAtTime(baseFreq, t);
+        osc1.frequency.setValueAtTime(baseFreq * 1.33, t + 0.055);
+        g1.gain.setValueAtTime(0.22, t);
+        g1.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
         osc1.connect(g1); g1.connect(this.ctx.destination);
-        osc1.start(t); osc1.stop(t + 0.18);
+        osc1.start(t); osc1.stop(t + 0.23);
 
-        // Tiny celebration "yay" — short chirp
+        // Harmonic sparkle overtone
         const osc2 = this.ctx.createOscillator();
         const g2 = this.ctx.createGain();
         osc2.type = 'triangle';
-        osc2.frequency.setValueAtTime(1200 + pitchShift, t + 0.1);
-        osc2.frequency.exponentialRampToValueAtTime(900 + pitchShift, t + 0.22);
-        g2.gain.setValueAtTime(0.12, t + 0.1);
-        g2.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+        osc2.frequency.setValueAtTime(baseFreq * 2, t + 0.05);
+        g2.gain.setValueAtTime(0.08, t + 0.05);
+        g2.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
         osc2.connect(g2); g2.connect(this.ctx.destination);
-        osc2.start(t + 0.1); osc2.stop(t + 0.25);
+        osc2.start(t + 0.05); osc2.stop(t + 0.21);
+    }
+
+    /**
+     * "Shield earned!" — satisfying power-up hum/chord
+     */
+    playShieldEarned() {
+        if (this.muted) return;
+        this.ensureAudioContext();
+        if (!this.ctx) return;
+
+        const t = this.ctx.currentTime;
+        const chord = [392.00, 493.88, 587.33, 783.99]; // G4, B4, D5, G5
+        chord.forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            osc.type = i === 0 ? 'triangle' : 'sine';
+            osc.frequency.setValueAtTime(freq * 0.9, t);
+            osc.frequency.exponentialRampToValueAtTime(freq, t + 0.12);
+            g.gain.setValueAtTime(0.001, t);
+            g.gain.linearRampToValueAtTime(0.12, t + 0.06);
+            g.gain.exponentialRampToValueAtTime(0.001, t + 0.48);
+            osc.connect(g);
+            g.connect(this.ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.5);
+        });
     }
 
     playRageBaitReaction(reaction, dialogue = '') {

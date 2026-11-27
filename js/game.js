@@ -24,6 +24,7 @@ import { RageBaitCoinManager } from './rageBaitCoin.js';
 import { SpaceBackground } from './spaceBackground.js';
 import { saveGameRun } from './db.js';
 import { getCurrentUser } from './auth.js';
+import { toggleTheme } from './theme.js';
 
 export const GAME_STATE = {
     MENU: 0,
@@ -38,6 +39,7 @@ export class GameEngine {
      */
     constructor(options = {}) {
         this._onGameOverCb = options.onGameOver || null;
+        this._onReturnToDashboardCb = options.onReturnToDashboard || null;
 
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
@@ -78,15 +80,21 @@ export class GameEngine {
 
         // Pause state
         this.isPaused = false;
-        this.pauseMessageVisible = false;
-        this.pauseMessageTimer = 0;
         this.pauseOverlay = document.getElementById('pause-overlay');
+        this.touchControls = document.getElementById('touch-controls');
+
+        // Screen shake (visual juice)
+        this.shakeTimer = 0;
+        this.shakeIntensity = 0;
 
         // Prevent duplicate game-run saves
         this._runSaved = false;
 
         this.initCanvasScale();
         this.bindEvents();
+        this._bindTouchControls();
+        this._bindRotateHint();
+        sound.syncMuteUI();
         this.showMenu();
     }
 
@@ -116,11 +124,10 @@ export class GameEngine {
             }
 
             if (e.code === 'KeyM') {
-                const isMuted = sound.toggleMute();
-                document.getElementById('audio-icon').textContent = isMuted ? '🔇' : '🔊';
+                sound.toggleMute();
             }
 
-            if (e.code === 'Space' && this.state === GAME_STATE.PLAYING) {
+            if ((e.code === 'Escape' || e.code === 'KeyP' || e.code === 'Space') && this.state === GAME_STATE.PLAYING) {
                 this._togglePause();
                 return;
             }
@@ -156,11 +163,95 @@ export class GameEngine {
         document.getElementById('main-menu-btn').addEventListener('click', () => {
             this.showMenu();
         });
+
+        document.getElementById('hud-theme-btn')?.addEventListener('click', () => {
+            toggleTheme();
+        });
+
+        document.getElementById('hud-pause-btn')?.addEventListener('click', () => {
+            if (this.state === GAME_STATE.PLAYING) this._togglePause();
+        });
+
+        document.getElementById('pause-resume-btn')?.addEventListener('click', () => {
+            if (this.isPaused) this._resumeFromPause();
+        });
+
+        document.getElementById('pause-restart-btn')?.addEventListener('click', () => {
+            sound.ensureAudioContext();
+            this.startGame();
+        });
+
+        document.getElementById('pause-dashboard-btn')?.addEventListener('click', () => {
+            this._resumeFromPause(true);
+            this.state = GAME_STATE.MENU;
+            this._setTouchControlsVisible(false);
+            if (this._onReturnToDashboardCb) this._onReturnToDashboardCb();
+        });
+    }
+
+    _bindTouchControls() {
+        const map = [
+            { id: 'touch-left',   key: 'left'  },
+            { id: 'touch-right',  key: 'right' },
+            { id: 'touch-jump',   key: 'jump'  },
+            { id: 'touch-crouch', key: 'down'  }
+        ];
+
+        map.forEach(({ id, key }) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+
+            const press = (e) => {
+                e.preventDefault();
+                sound.ensureAudioContext();
+                if (this.state === GAME_STATE.PLAYING && !this.isPaused) {
+                    this.keys[key] = true;
+                    btn.classList.add('active');
+                }
+            };
+
+            const release = (e) => {
+                if (e) e.preventDefault();
+                this.keys[key] = false;
+                btn.classList.remove('active');
+            };
+
+            btn.addEventListener('pointerdown', press, { passive: false });
+            btn.addEventListener('pointerup', release, { passive: false });
+            btn.addEventListener('pointercancel', release, { passive: false });
+            btn.addEventListener('pointerleave', release, { passive: false });
+            btn.addEventListener('touchstart', press, { passive: false });
+            btn.addEventListener('touchend', release, { passive: false });
+            btn.addEventListener('touchcancel', release, { passive: false });
+        });
+    }
+
+    _bindRotateHint() {
+        const hint = document.getElementById('rotate-hint');
+        const closeBtn = document.getElementById('rotate-hint-close');
+        if (!hint || !closeBtn) return;
+
+        try {
+            if (sessionStorage.getItem('rotate_hint_dismissed') === '1') {
+                hint.classList.add('dismissed');
+            }
+        } catch (e) {}
+
+        closeBtn.addEventListener('click', () => {
+            hint.classList.add('dismissed');
+            try { sessionStorage.setItem('rotate_hint_dismissed', '1'); } catch (e) {}
+        });
+    }
+
+    _setTouchControlsVisible(visible) {
+        if (!this.touchControls) return;
+        this.touchControls.classList.toggle('hidden', !visible);
     }
 
     showMenu() {
         this.state = GAME_STATE.MENU;
         this._resumeFromPause(true);
+        this._setTouchControlsVisible(false);
         this.rageBait.reset(sound);
         this.ui.showStartScreen();
     }
@@ -169,6 +260,7 @@ export class GameEngine {
         if (!this.isPaused) {
             this.isPaused = true;
             this.keys = { left: false, right: false, jump: false, down: false };
+            this._setTouchControlsVisible(false);
             this._showPauseMessage();
         } else {
             this._resumeFromPause();
@@ -178,27 +270,23 @@ export class GameEngine {
     _showPauseMessage() {
         if (!this.pauseOverlay) return;
         this.pauseOverlay.classList.remove('hidden');
-        this.pauseMessageVisible = true;
-        this.pauseMessageTimer = 2;
-    }
-
-    _hidePauseMessage() {
-        if (!this.pauseOverlay) return;
-        this.pauseOverlay.classList.add('hidden');
-        this.pauseMessageVisible = false;
     }
 
     _resumeFromPause(silent = false) {
         this.isPaused = false;
-        this.pauseMessageVisible = false;
-        this.pauseMessageTimer = 0;
         if (this.pauseOverlay) this.pauseOverlay.classList.add('hidden');
+        if (!silent && this.state === GAME_STATE.PLAYING) {
+            this._setTouchControlsVisible(true);
+        }
     }
 
     startGame() {
         this.score = 0;
         this._runSaved = false; // reset save guard for new run
         this._resumeFromPause(true);
+        this._setTouchControlsVisible(false);
+        this.shakeTimer = 0;
+        this.shakeIntensity = 0;
         this.particles.reset();
         this.player.reset();
         this.platform.reset();
@@ -219,8 +307,10 @@ export class GameEngine {
     gameOver(reason) {
         if (this.state === GAME_STATE.GAMEOVER) return;
         this.state = GAME_STATE.GAMEOVER;
+        this._setTouchControlsVisible(false);
         this.rageBait.reset(sound);
         this.deathCause = reason;
+        this._triggerShake(10, 0.35);
 
         sound.playWomp();
         sound.playImpact();
@@ -319,12 +409,15 @@ export class GameEngine {
         requestAnimationFrame(loop);
     }
 
+    _triggerShake(intensity, duration) {
+        this.shakeIntensity = Math.max(this.shakeIntensity, intensity);
+        this.shakeTimer = Math.max(this.shakeTimer, duration);
+    }
+
     update(dt) {
-        if (this.isPaused && this.pauseMessageVisible) {
-            this.pauseMessageTimer -= dt;
-            if (this.pauseMessageTimer <= 0) {
-                this._hidePauseMessage();
-            }
+        if (this.shakeTimer > 0) {
+            this.shakeTimer = Math.max(0, this.shakeTimer - dt);
+            if (this.shakeTimer === 0) this.shakeIntensity = 0;
         }
 
         if (this.isPaused) {
@@ -341,6 +434,7 @@ export class GameEngine {
             if (this.introTimer >= this.introDuration) {
                 this.state = GAME_STATE.PLAYING;
                 this.ui.showHUD();
+                this._setTouchControlsVisible(true);
                 this.cameraOffset = 0;
                 const regionMap = ['earth','mars','jupiter','nebula','blackhole'];
                 this.spaceBackground.setRegion(regionMap[this.difficulty.currentStageIndex] || 'earth');
@@ -384,7 +478,8 @@ export class GameEngine {
                 playerHitbox,
                 sound,
                 this.energy,
-                intervalIndex
+                intervalIndex,
+                this.particles
             );
             if (coinResult.score > 0) {
                 this.score += coinResult.score;
@@ -442,7 +537,9 @@ export class GameEngine {
                         this.energy.tryActivateShield();
                     }
 
-                    this.player.checkNearMiss(hazardHitbox, sound);
+                    if (this.player.checkNearMiss(hazardHitbox, sound)) {
+                        this._triggerShake(4, 0.16);
+                    }
                 }
             }
 
@@ -480,6 +577,12 @@ export class GameEngine {
     }
 
     draw() {
+        this.ctx.save();
+        if (this.shakeTimer > 0 && this.shakeIntensity > 0) {
+            const dx = (Math.random() - 0.5) * 2 * this.shakeIntensity;
+            const dy = (Math.random() - 0.5) * 2 * this.shakeIntensity;
+            this.ctx.translate(dx, dy);
+        }
         this.spaceBackground.draw(this.ctx, this.cameraOffset);
 
         if (this.state === GAME_STATE.INTRO) {
@@ -519,5 +622,7 @@ export class GameEngine {
             const shieldActive = (this.state === GAME_STATE.PLAYING) && this.energy.shieldActive;
             this.player.draw(this.ctx, this.energy, shieldActive);
         }
+
+        this.ctx.restore();
     }
 }

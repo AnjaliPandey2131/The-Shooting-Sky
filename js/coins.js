@@ -361,7 +361,7 @@ export class CoinManager {
      * @param {EnergyManager} energyManager
      * @param {number} intervalIndex - current 30s interval (0-based)
      */
-    checkPlayerCollection(playerHitbox, sound, energyManager = null, intervalIndex = 0) {
+    checkPlayerCollection(playerHitbox, sound, energyManager = null, intervalIndex = 0, particles = null) {
         let scoreGained = 0;
         let coinsThisCheck = 0;
         let newShieldEarned = false;
@@ -381,7 +381,8 @@ export class CoinManager {
                         coin.y,
                         sound,
                         energyManager,
-                        intervalIndex
+                        intervalIndex,
+                        particles
                     );
                     scoreGained += reward.score;
                     coinsThisCheck++;
@@ -393,9 +394,13 @@ export class CoinManager {
         return { score: scoreGained, coinsCollected: coinsThisCheck, newShieldEarned };
     }
 
-    awardCollectedCoin(x, y, sound, energyManager = null, intervalIndex = 0) {
+    awardCollectedCoin(x, y, sound, energyManager = null, intervalIndex = 0, particles = null) {
         this.totalCollected++;
         sound.playCoin();
+
+        if (particles) {
+            particles.createExplosion(x, y, '#FFD700', 10, 0.55);
+        }
 
         const newShieldEarned = energyManager
             ? energyManager.onCoinCollected(intervalIndex)
@@ -406,6 +411,9 @@ export class CoinManager {
             new FloatingText(x, y - 42, `+${CONFIG.ENERGY.COIN_RESTORE}% ⚡`, '#a3e635')
         );
         if (newShieldEarned) {
+            if (typeof sound.playShieldEarned === 'function') {
+                sound.playShieldEarned();
+            }
             this.floatingTexts.push(new FloatingText(x, y - 64, `🛡 SHIELD!`, '#00f0ff'));
         }
 

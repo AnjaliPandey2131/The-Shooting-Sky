@@ -25,8 +25,10 @@ import {
 import { db } from './firebase.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const userRef  = uid => doc(db, 'users', uid);
-const runsRef  = uid => collection(db, 'users', uid, 'gameRuns');
+const userRef        = uid => doc(db, 'users', uid);
+const runsRef        = uid => collection(db, 'users', uid, 'gameRuns');
+const leaderboardRef = uid => doc(db, 'leaderboard', uid);
+const leaderboardCol = ()  => collection(db, 'leaderboard');
 
 // ── Create / update user profile on login ────────────────────────────────────
 /**
@@ -104,9 +106,49 @@ export async function migrateLocalScore(uid, storageKey) {
         });
 
         console.log(`[DB] Local score ${localScore} migration complete.`);
+        const updatedSnap = await getDoc(userRef(uid));
+        if (updatedSnap.exists()) {
+            const p = updatedSnap.data();
+            if ((p.bestScore || 0) > 0) {
+                await syncLeaderboardEntry(uid, p.displayName, p.bestScore, p.highestStage || 1);
+            }
+        }
     } catch (err) {
         console.warn('[DB] Local score migration failed (non-fatal):', err.message);
     }
+}
+
+// ── Sync public leaderboard entry ─────────────────────────────────────────────
+/**
+ * Writes/updates leaderboard/{uid} with non-sensitive public fields only
+ * (never email). Keeps users/{uid} private.
+ */
+export async function syncLeaderboardEntry(uid, displayName, bestScore, highestStage) {
+    try {
+        await setDoc(leaderboardRef(uid), {
+            uid,
+            displayName:  displayName || 'Space Traveller',
+            bestScore:    Math.floor(bestScore || 0),
+            highestStage: Math.max(1, Math.floor(highestStage || 1)),
+            updatedAt:    serverTimestamp()
+        }, { merge: true });
+    } catch (err) {
+        console.warn('[DB] Leaderboard sync failed (non-fatal):', err.message);
+    }
+}
+
+// ── Fetch Top 10 Global Leaderboard ───────────────────────────────────────────
+/**
+ * Fetches Top 10 players ordered by bestScore descending.
+ */
+export async function fetchLeaderboard(topN = 10) {
+    const q = query(
+        leaderboardCol(),
+        orderBy('bestScore', 'desc'),
+        limit(topN)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 // ── Save a completed game run ─────────────────────────────────────────────────
@@ -152,6 +194,7 @@ export async function saveGameRun(uid, runData) {
     runId = runDoc.id;
 
     // 2. Atomically update summary statistics
+    let leaderProfile = null;
     await runTransaction(db, async tx => {
         const txSnap = await tx.get(userRef(uid));
         if (!txSnap.exists()) return;
@@ -159,6 +202,11 @@ export async function saveGameRun(uid, runData) {
         const data = txSnap.data();
         const newBest = roundedScore > (data.bestScore || 0);
         isNewBest     = newBest;
+
+        const nextBestScore    = newBest ? roundedScore : (data.bestScore || 0);
+        const nextHighestStage = highestStageReached > (data.highestStage || 0)
+            ? highestStageReached
+            : (data.highestStage || 1);
 
         const updates = {
             previousScore:     roundedScore,
@@ -176,7 +224,22 @@ export async function saveGameRun(uid, runData) {
         }
 
         tx.update(userRef(uid), updates);
+        leaderProfile = {
+            displayName:  data.displayName || 'Space Traveller',
+            bestScore:    nextBestScore,
+            highestStage: nextHighestStage
+        };
     });
+
+    // 3. Sync public leaderboard entry (non-sensitive fields only)
+    if (leaderProfile) {
+        await syncLeaderboardEntry(
+            uid,
+            leaderProfile.displayName,
+            leaderProfile.bestScore,
+            leaderProfile.highestStage
+        );
+    }
 
     return { runId, isNewBest };
 }

@@ -5,7 +5,9 @@
    ------------------------------------------------------------- */
 
 import { signOutUser }                from './auth.js';
-import { loadUserProfile, fetchRecentRuns } from './db.js';
+import { loadUserProfile, fetchRecentRuns, fetchLeaderboard, syncLeaderboardEntry } from './db.js';
+import { toggleTheme, getTheme }      from './theme.js';
+import { sound }                      from './audio.js';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let _dashScreen    = null;
@@ -40,6 +42,7 @@ export async function refreshDashboardAfterGame() {
 
 // ── Build DOM ─────────────────────────────────────────────────────────────────
 function _build() {
+    const isLight = getTheme() === 'light';
     _dashScreen = document.createElement('div');
     _dashScreen.id = 'dashboard-screen';
     _dashScreen.innerHTML = `
@@ -67,6 +70,18 @@ function _build() {
                 <div class="dash-nav">
                     <div class="nav-item active" data-panel="stats">📊 My Stats</div>
                     <div class="nav-item" data-panel="history">📋 Game History</div>
+                    <div class="nav-item" data-panel="leaderboard">🏆 Leaderboard</div>
+                </div>
+
+                <div class="dash-controls-row">
+                    <button id="dash-theme-btn" class="dash-util-btn" data-theme-toggle type="button" title="Toggle Theme">
+                        <span class="theme-icon">${isLight ? '☀️' : '🌙'}</span>
+                        <span class="theme-label">${isLight ? 'Solar Sky' : 'Midnight Space'}</span>
+                    </button>
+                    <button id="dash-mute-btn" class="dash-util-btn" type="button" title="Toggle Sound">
+                        <span data-mute-icon>${sound.muted ? '🔇' : '🔊'}</span>
+                        <span data-mute-label>${sound.muted ? 'Sound Off' : 'Sound On'}</span>
+                    </button>
                 </div>
             </aside>
 
@@ -97,6 +112,17 @@ function _build() {
                         <div class="history-loading">Loading…</div>
                     </div>
                     <button id="dash-load-more" class="secondary-btn load-more-btn hidden">Load More</button>
+                </div>
+
+                <!-- Leaderboard panel -->
+                <div id="dash-panel-leaderboard" class="dash-panel">
+                    <div class="dash-heading-row">
+                        <h2 class="dash-heading">Global Leaderboard (Top 10)</h2>
+                        <button id="dash-lb-refresh" class="secondary-btn lb-refresh-btn" type="button">↻ Refresh</button>
+                    </div>
+                    <div id="dash-leaderboard-list" class="leaderboard-list">
+                        <div class="history-loading">Loading…</div>
+                    </div>
                 </div>
             </main>
         </div>
@@ -143,7 +169,20 @@ function _bindDashEvents() {
     });
 
     document.getElementById('dash-start-btn').addEventListener('click', () => {
+        sound.ensureAudioContext();
         if (_startGameCb) _startGameCb();
+    });
+
+    document.getElementById('dash-theme-btn')?.addEventListener('click', () => {
+        toggleTheme();
+    });
+
+    document.getElementById('dash-mute-btn')?.addEventListener('click', () => {
+        sound.toggleMute();
+    });
+
+    document.getElementById('dash-lb-refresh')?.addEventListener('click', () => {
+        _loadLeaderboard();
     });
 
     document.querySelectorAll('.nav-item').forEach(item => {
@@ -156,6 +195,8 @@ function _bindDashEvents() {
 
             if (item.dataset.panel === 'history') {
                 _loadHistory(true);
+            } else if (item.dataset.panel === 'leaderboard') {
+                _loadLeaderboard();
             }
         });
     });
@@ -191,8 +232,77 @@ async function _loadAndRender() {
 
         const isEmpty = profile.totalGames === 0;
         document.getElementById('dash-empty-stats')?.classList.toggle('hidden', !isEmpty);
+
+        // Keep leaderboard entry in sync for existing players
+        if ((profile.bestScore || 0) > 0) {
+            syncLeaderboardEntry(
+                _user.uid,
+                profile.displayName || _user.displayName,
+                profile.bestScore,
+                profile.highestStage || 1
+            );
+        }
     } catch (err) {
         console.error('[Dashboard] Failed to load profile:', err);
+    }
+}
+
+// ── Load Top 10 Leaderboard ───────────────────────────────────────────────────
+async function _loadLeaderboard() {
+    const list = document.getElementById('dash-leaderboard-list');
+    if (!list) return;
+    list.innerHTML = '<div class="history-loading">Loading leaderboard…</div>';
+
+    try {
+        const entries = await fetchLeaderboard(10);
+        list.innerHTML = '';
+
+        if (!entries.length) {
+            list.innerHTML = `
+                <div class="history-empty">
+                    <div class="empty-icon">🏆</div>
+                    <p>No leaderboard scores yet — be the first to set a record!</p>
+                </div>`;
+            return;
+        }
+
+        const medals = ['🥇', '🥈', '🥉'];
+        entries.forEach((entry, index) => {
+            const isSelf = _user && entry.uid === _user.uid;
+            const row = document.createElement('div');
+            row.className = `lb-row glass-panel${isSelf ? ' lb-self' : ''}`;
+
+            const rankEl = document.createElement('div');
+            rankEl.className = 'lb-rank';
+            rankEl.textContent = index < 3 ? medals[index] : `#${index + 1}`;
+
+            const nameEl = document.createElement('div');
+            nameEl.className = 'lb-name';
+            nameEl.textContent = entry.displayName || 'Space Traveller';
+            if (isSelf) {
+                const badge = document.createElement('span');
+                badge.className = 'lb-you-badge';
+                badge.textContent = 'YOU';
+                nameEl.appendChild(badge);
+            }
+
+            const stageEl = document.createElement('div');
+            stageEl.className = 'lb-stage';
+            stageEl.textContent = `Stage ${entry.highestStage || 1}`;
+
+            const scoreEl = document.createElement('div');
+            scoreEl.className = 'lb-score highlight-gold';
+            scoreEl.textContent = `${(entry.bestScore || 0).toLocaleString()} pts`;
+
+            row.appendChild(rankEl);
+            row.appendChild(nameEl);
+            row.appendChild(stageEl);
+            row.appendChild(scoreEl);
+            list.appendChild(row);
+        });
+    } catch (err) {
+        console.error('[Dashboard] Failed to load leaderboard:', err);
+        list.innerHTML = '<div class="history-empty">Failed to load leaderboard. Check Firestore rules.</div>';
     }
 }
 

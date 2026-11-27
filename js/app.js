@@ -12,12 +12,21 @@ import { showDashboard, hideDashboard,
          setStartGameCallback, refreshDashboardAfterGame } from './dashboard.js';
 import { GameEngine }                              from './game.js';
 import { CONFIG }                                  from './config.js';
+import { initTheme }                               from './theme.js';
+import { sound }                                   from './audio.js';
 
 let _gameEngine = null;
 let _gameVisible = false;
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 export async function bootApp() {
+    initTheme();
+    sound.syncMuteUI();
+
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+        document.body.classList.add('has-touch');
+    }
+
     // Show the login screen immediately while Firebase resolves auth state
     showLoginScreen();
 
@@ -72,12 +81,14 @@ function _startGame() {
 
     if (!_gameEngine) {
         // First run: create the engine once and start its loop
-        _gameEngine = new GameEngine({ onGameOver: _onGameOver });
+        _gameEngine = new GameEngine({
+            onGameOver: _onGameOver,
+            onReturnToDashboard: returnToDashboard
+        });
         _gameEngine.startLoop();
-    } else {
-        // Subsequent run: reuse the existing engine and go directly to the menu
-        _gameEngine.showMenu();
     }
+    // Launch directly into gameplay for a streamlined flow
+    _gameEngine.startGame();
 }
 
 // ── Game-over hook ────────────────────────────────────────────────────────────

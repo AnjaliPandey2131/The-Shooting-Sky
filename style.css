@@ -1563,3 +1563,565 @@ canvas {
     .login-title-glow   { font-size: 1.8rem; }
     .login-title-highlight { font-size: 2.2rem; }
 }
+
+
+/* ═════════════════════════════════════════════════════════════
+   SHOOTING STARS — v2.1 POLISH UPGRADES
+   1. Mobile & Touch Protections + On-Screen Controls + Rotate Hint
+   2. Dual Theme System: Midnight Space (dark) & Solar Sky (light)
+   3. Global Leaderboard Styles
+   4. Upgraded Pause Overlay
+   ═════════════════════════════════════════════════════════════ */
+
+html, body {
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+#game-container,
+#gameCanvas {
+    touch-action: none;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   DUAL THEME: SOLAR SKY (LIGHT MODE)
+───────────────────────────────────────────────────────────── */
+[data-theme="light"] {
+    --region-earth-start: #6cb8f0;
+    --region-earth-end: #d6effc;
+    --region-mars-start: #e89b74;
+    --region-mars-end: #fce3cf;
+    --region-jupiter-start: #b59ed8;
+    --region-jupiter-end: #efe5fb;
+    --region-nebula-start: #d39ee8;
+    --region-nebula-end: #fbe6f4;
+    --region-blackhole-start: #4a435d;
+    --region-blackhole-end: #766b8c;
+
+    --bg-dark: #dceefb;
+    --primary-cyan: #0284c7;
+    --primary-purple: #7c3aed;
+    --accent-gold: #b45309;
+    --accent-red: #e11d48;
+    --accent-orange: #ea580c;
+    --accent-green: #059669;
+    --glass-bg: rgba(255, 255, 255, 0.84);
+    --glass-border: rgba(15, 23, 42, 0.12);
+}
+
+[data-theme="light"] body {
+    background: linear-gradient(160deg, #cce7fb 0%, #f8d9c6 100%);
+    color: #0f172a;
+}
+
+[data-theme="light"] #login-screen,
+[data-theme="light"] #dashboard-screen {
+    background: linear-gradient(155deg, #bfe3fb 0%, #e7eff9 48%, #f8d8c8 100%);
+}
+
+[data-theme="light"] #game-container {
+    background: linear-gradient(180deg, #8ccbf4 0%, #f5dfd3 100%);
+    box-shadow: 0 12px 42px rgba(15, 23, 42, 0.18);
+    border-color: rgba(15, 23, 42, 0.16);
+}
+
+[data-theme="light"] .login-star {
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0 4px rgba(2, 132, 199, 0.35);
+}
+
+[data-theme="light"] .glass-panel {
+    background: rgba(255, 255, 255, 0.84);
+    border-color: rgba(15, 23, 42, 0.14);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.1);
+    color: #0f172a;
+}
+
+[data-theme="light"] .login-title-glow {
+    color: #0f172a;
+    text-shadow: 0 2px 14px rgba(2, 132, 199, 0.25);
+}
+
+[data-theme="light"] .login-subtitle,
+[data-theme="light"] .login-footer,
+[data-theme="light"] .profile-email,
+[data-theme="light"] .stat-card-label,
+[data-theme="light"] .hr-date,
+[data-theme="light"] .hr-coins,
+[data-theme="light"] .hr-time,
+[data-theme="light"] .dash-empty,
+[data-theme="light"] .empty-sub,
+[data-theme="light"] .history-loading,
+[data-theme="light"] .history-empty {
+    color: #475569;
+}
+
+[data-theme="light"] .login-features span {
+    background: rgba(2, 132, 199, 0.08);
+    border-color: rgba(2, 132, 199, 0.24);
+    color: #0f172a;
+}
+
+[data-theme="light"] .dash-sidebar {
+    background: rgba(255, 255, 255, 0.88);
+    border-color: rgba(15, 23, 42, 0.1);
+}
+
+[data-theme="light"] .profile-section {
+    border-bottom-color: rgba(15, 23, 42, 0.1);
+}
+
+[data-theme="light"] .profile-name,
+[data-theme="light"] .dash-heading,
+[data-theme="light"] .stat-card-value,
+[data-theme="light"] .hr-stage,
+[data-theme="light"] .lb-name,
+[data-theme="light"] .hud-value,
+[data-theme="light"] .stat-val,
+[data-theme="light"] .pause-title {
+    color: #0f172a;
+    text-shadow: none;
+}
+
+[data-theme="light"] .nav-item {
+    color: #475569;
+}
+
+[data-theme="light"] .nav-item:hover {
+    background: rgba(15, 23, 42, 0.05);
+    color: #0f172a;
+}
+
+[data-theme="light"] .nav-item.active {
+    background: rgba(2, 132, 199, 0.1);
+    color: #0284c7;
+    border-left-color: #0284c7;
+}
+
+[data-theme="light"] .hud-card {
+    background: rgba(255, 255, 255, 0.82);
+    border-color: rgba(15, 23, 42, 0.14);
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1);
+}
+
+[data-theme="light"] .hud-label,
+[data-theme="light"] .hud-sub,
+[data-theme="light"] .stat-lbl,
+[data-theme="light"] .pause-hint,
+[data-theme="light"] .lb-stage {
+    color: #475569;
+}
+
+[data-theme="light"] .icon-btn {
+    background: rgba(255, 255, 255, 0.85);
+    border-color: rgba(15, 23, 42, 0.18);
+    color: #0f172a;
+}
+
+[data-theme="light"] .secondary-btn {
+    background: rgba(255, 255, 255, 0.8);
+    color: #0f172a;
+    border-color: rgba(15, 23, 42, 0.22);
+}
+
+[data-theme="light"] .secondary-btn:hover {
+    background: rgba(255, 255, 255, 0.96);
+}
+
+[data-theme="light"] .highlight-gold,
+[data-theme="light"] .glowing-yellow {
+    color: #b45309 !important;
+    text-shadow: none;
+}
+
+[data-theme="light"] #pause-overlay {
+    background: rgba(226, 239, 252, 0.65);
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   THEME & MUTE UTILITY BUTTONS
+───────────────────────────────────────────────────────────── */
+.theme-toggle-btn,
+.dash-util-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 20px;
+    background: rgba(15, 23, 42, 0.72);
+    border: 1px solid rgba(0, 240, 255, 0.25);
+    color: #ffffff;
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.theme-toggle-btn:hover,
+.dash-util-btn:hover {
+    transform: translateY(-1px);
+    border-color: var(--primary-cyan);
+}
+
+[data-theme="light"] .theme-toggle-btn,
+[data-theme="light"] .dash-util-btn {
+    background: rgba(255, 255, 255, 0.88);
+    border-color: rgba(15, 23, 42, 0.18);
+    color: #0f172a;
+}
+
+.floating-theme-btn {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 120;
+}
+
+.dash-controls-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: auto;
+}
+
+.dash-util-btn {
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 0.74rem;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   GLOBAL LEADERBOARD
+───────────────────────────────────────────────────────────── */
+.dash-heading-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.dash-heading-row .dash-heading {
+    margin-bottom: 0;
+}
+
+.lb-refresh-btn {
+    padding: 7px 14px;
+    font-size: 0.75rem;
+}
+
+.leaderboard-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.lb-row {
+    display: grid;
+    grid-template-columns: 52px 1fr auto auto;
+    align-items: center;
+    gap: 14px;
+    padding: 13px 18px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: border-color 0.2s ease, transform 0.15s ease;
+}
+
+.lb-row:hover {
+    border-color: rgba(0, 240, 255, 0.25);
+    transform: translateY(-1px);
+}
+
+.lb-self {
+    border-color: rgba(0, 240, 255, 0.55) !important;
+    background: rgba(0, 240, 255, 0.09) !important;
+    box-shadow: 0 0 18px rgba(0, 240, 255, 0.14);
+}
+
+.lb-rank {
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.lb-name {
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lb-you-badge {
+    font-family: var(--font-heading);
+    font-size: 0.6rem;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: var(--primary-cyan);
+    color: #06101f;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    flex-shrink: 0;
+}
+
+.lb-stage {
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.lb-score {
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-align: right;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   UPGRADED PAUSE OVERLAY (interactive Resume / Restart / Dashboard)
+───────────────────────────────────────────────────────────── */
+#pause-overlay {
+    pointer-events: auto;
+}
+
+#pause-overlay.hidden {
+    pointer-events: none;
+}
+
+.pause-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 32px 36px;
+    text-align: center;
+    max-width: 360px;
+    width: 88%;
+}
+
+.pause-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    margin-top: 8px;
+}
+
+.pause-actions button {
+    width: 100%;
+    padding: 12px 18px;
+    font-size: 0.85rem;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   ON-SCREEN TOUCH CONTROLS (Touch devices ONLY)
+───────────────────────────────────────────────────────────── */
+.touch-controls {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 14px;
+    z-index: 22;
+    display: none;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 0 18px;
+    pointer-events: none;
+}
+
+.touch-controls.hidden {
+    display: none !important;
+}
+
+@media (hover: none) and (pointer: coarse) {
+    body.has-touch .touch-controls:not(.hidden) {
+        display: flex;
+    }
+}
+
+@media (max-width: 920px) {
+    body.has-touch .touch-controls:not(.hidden) {
+        display: flex;
+    }
+}
+
+.touch-group {
+    display: flex;
+    gap: 12px;
+    pointer-events: auto;
+}
+
+.touch-btn {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(0, 240, 255, 0.45);
+    background: rgba(10, 14, 32, 0.45);
+    color: #ffffff;
+    font-size: 1.35rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    touch-action: none;
+    user-select: none;
+    cursor: pointer;
+    transition: transform 0.08s ease, background 0.1s ease;
+}
+
+.touch-btn.active,
+.touch-btn:active {
+    transform: scale(0.92);
+    background: rgba(0, 240, 255, 0.32);
+    border-color: #00f0ff;
+}
+
+.touch-btn-jump {
+    border-color: rgba(255, 209, 102, 0.55);
+}
+
+[data-theme="light"] .touch-btn {
+    background: rgba(255, 255, 255, 0.55);
+    color: #0f172a;
+    border-color: rgba(2, 132, 199, 0.5);
+}
+
+[data-theme="light"] .touch-btn.active,
+[data-theme="light"] .touch-btn:active {
+    background: rgba(2, 132, 199, 0.25);
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   ROTATE PHONE HINT (Narrow mobile portrait only)
+───────────────────────────────────────────────────────────── */
+.rotate-hint {
+    display: none;
+    position: absolute;
+    top: 64px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 30;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(0, 240, 255, 0.35);
+    color: #e2e8f0;
+    font-size: 0.74rem;
+    white-space: nowrap;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.rotate-hint.dismissed {
+    display: none !important;
+}
+
+.rotate-hint-close {
+    background: transparent;
+    border: none;
+    color: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 0 4px;
+    opacity: 0.75;
+}
+
+@media (max-width: 720px) and (orientation: portrait) {
+    .rotate-hint:not(.dismissed) {
+        display: flex;
+    }
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   MOBILE RESPONSIVE HUD, MODALS & DASHBOARD POLISH
+───────────────────────────────────────────────────────────── */
+@media (max-width: 760px) {
+    #hud-layer {
+        padding: 10px 12px;
+    }
+
+    .hud-card {
+        padding: 6px 9px;
+    }
+
+    .hud-label {
+        font-size: 0.52rem;
+    }
+
+    .hud-value {
+        font-size: 0.85rem;
+    }
+
+    .hud-sub {
+        display: none;
+    }
+
+    .icon-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 0.9rem;
+    }
+
+    .energy-hud-wrap {
+        width: 180px;
+        bottom: 10px;
+    }
+
+    .lb-row {
+        grid-template-columns: 40px 1fr auto;
+        gap: 10px;
+        padding: 10px 12px;
+    }
+
+    .lb-stage {
+        display: none;
+    }
+
+    .gameover-panel {
+        padding: 18px 16px;
+        max-height: 92vh;
+        overflow-y: auto;
+    }
+
+    .gameover-title {
+        font-size: 1.5rem;
+    }
+
+    .button-row {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+    #hud-layer {
+        padding: 8px 12px;
+    }
+
+    .energy-hud-wrap {
+        bottom: 8px;
+    }
+
+    .touch-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 1.15rem;
+    }
+}

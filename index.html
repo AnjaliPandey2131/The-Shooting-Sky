@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>SHOOTING STARS — 2D Survival Arcade</title>
     <meta name="description" content="Shooting Stars: a fast-paced 2D survival arcade game. Sign in with Google, dodge meteors, jump on moving platforms and collect glowing coins to restore energy!">
     <!-- Google Fonts for Arcade & Clean Typography -->
@@ -42,7 +42,7 @@
                 </div>
             </div>
 
-            <!-- Top Right: Score + Audio -->
+            <!-- Top Right: Score + Theme + Audio + Pause -->
             <div class="hud-group top-right">
                 <div class="hud-card score-card">
                     <span class="hud-label">SCORE</span>
@@ -52,8 +52,14 @@
                     <span class="hud-label">BEST</span>
                     <span id="hud-best-val" class="hud-value">0</span>
                 </div>
-                <button id="audio-toggle-btn" class="icon-btn" title="Toggle Sound (M)">
-                    <span id="audio-icon">🔊</span>
+                <button id="hud-theme-btn" class="icon-btn" data-theme-toggle type="button" title="Toggle Theme">
+                    <span class="theme-icon">🌙</span>
+                </button>
+                <button id="audio-toggle-btn" class="icon-btn" type="button" title="Toggle Sound (M)">
+                    <span id="audio-icon" data-mute-icon>🔊</span>
+                </button>
+                <button id="hud-pause-btn" class="icon-btn" type="button" title="Pause (Esc / P)">
+                    <span>⏸</span>
                 </button>
             </div>
 
@@ -273,10 +279,35 @@
             </div>
         </div>
 
-        <!-- Pause Overlay (shown when Space is pressed during gameplay) -->
+        <!-- Pause Overlay (Esc / P / Space / Pause button) -->
         <div id="pause-overlay" class="hidden">
-            <div class="pause-title">PAUSED</div>
-            <div class="pause-hint">PRESS SPACE TO RESUME</div>
+            <div class="pause-card glass-panel">
+                <div class="pause-title">PAUSED</div>
+                <div class="pause-hint">PRESS ESC, P OR SPACE TO RESUME</div>
+                <div class="pause-actions">
+                    <button id="pause-resume-btn" class="primary-btn" type="button">▶ RESUME</button>
+                    <button id="pause-restart-btn" class="secondary-btn" type="button">↻ RESTART</button>
+                    <button id="pause-dashboard-btn" class="secondary-btn dashboard-return-btn" type="button">📊 DASHBOARD</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- On-Screen Touch Controls (shown ONLY on touch devices during active play) -->
+        <div id="touch-controls" class="touch-controls hidden" aria-label="Touch Controls">
+            <div class="touch-group touch-left-group">
+                <button id="touch-left" class="touch-btn" type="button" aria-label="Move Left">◀</button>
+                <button id="touch-right" class="touch-btn" type="button" aria-label="Move Right">▶</button>
+            </div>
+            <div class="touch-group touch-right-group">
+                <button id="touch-crouch" class="touch-btn" type="button" aria-label="Crouch">▼</button>
+                <button id="touch-jump" class="touch-btn touch-btn-jump" type="button" aria-label="Jump">▲</button>
+            </div>
+        </div>
+
+        <!-- Subtle Dismissible Portrait Orientation Hint (narrow mobile portrait only) -->
+        <div id="rotate-hint" class="rotate-hint">
+            <span>📱 Rotate phone for best experience</span>
+            <button id="rotate-hint-close" class="rotate-hint-close" type="button" aria-label="Dismiss">✕</button>
         </div>
     </div>
 

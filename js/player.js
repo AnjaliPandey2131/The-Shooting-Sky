@@ -204,7 +204,7 @@ export class Player {
      * Check if a hazard is very close (near miss). Plays whoa/yikes sound.
      */
     checkNearMiss(hazardHitbox, sound) {
-        if (this.nearMissCooldown > 0) return;
+        if (this.nearMissCooldown > 0) return false;
         const playerHB = this.getHitbox();
 
         // Expand player hitbox by 20px for near-miss zone
@@ -223,7 +223,9 @@ export class Player {
         ) {
             sound.playNearMiss();
             this.nearMissCooldown = 3;
+            return true;
         }
+        return false;
     }
 
     // Returns bounding box for collision detection
@@ -308,26 +310,38 @@ export class Player {
             ctx.restore();
         }
 
-        // ── Stickman body colour changes with energy tier ──
+        // ── Stickman body colour changes with energy tier & theme ──
+        const isLightTheme = document.documentElement.getAttribute('data-theme') === 'light';
         let glowColor, bodyColor;
-        switch (tier) {
-            case 'HIGH':
-                glowColor = '#00f0ff'; bodyColor = '#ffffff'; break;
-            case 'MED':
-                glowColor = '#a3e635'; bodyColor = '#e8f5e8'; break;
-            case 'LOW':
-                glowColor = '#fb923c'; bodyColor = '#ffe8d6'; break;
-            default: // ZERO
-                glowColor = '#f43f5e'; bodyColor = '#fecaca'; break;
+        if (isLightTheme) {
+            bodyColor = '#0f172a';
+            switch (tier) {
+                case 'HIGH': glowColor = '#0284c7'; break;
+                case 'MED':  glowColor = '#65a30d'; break;
+                case 'LOW':  glowColor = '#ea580c'; break;
+                default:     glowColor = '#e11d48'; break;
+            }
+            if (this.standingOnTile) glowColor = '#0369a1';
+        } else {
+            switch (tier) {
+                case 'HIGH':
+                    glowColor = '#00f0ff'; bodyColor = '#ffffff'; break;
+                case 'MED':
+                    glowColor = '#a3e635'; bodyColor = '#e8f5e8'; break;
+                case 'LOW':
+                    glowColor = '#fb923c'; bodyColor = '#ffe8d6'; break;
+                default: // ZERO
+                    glowColor = '#f43f5e'; bodyColor = '#fecaca'; break;
+            }
+            if (this.standingOnTile) glowColor = '#88eeff';
         }
-        if (this.standingOnTile) glowColor = '#88eeff';
 
         ctx.strokeStyle = bodyColor;
         ctx.lineWidth = 3.5;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.shadowColor = glowColor;
-        ctx.shadowBlur = 8;
+        ctx.shadowBlur = isLightTheme ? 6 : 8;
 
         const dir = this.facingRight ? 1 : -1;
 
@@ -339,7 +353,7 @@ export class Player {
         ctx.stroke();
 
         // Eye (gives direction & expression)
-        ctx.fillStyle = '#0a0c16';
+        ctx.fillStyle = isLightTheme ? '#ffffff' : '#0a0c16';
         const eyeX = leanedHeadX + dir * (headR * 0.4);
         const eyeY = leanedHeadY - 1;
         ctx.beginPath();
