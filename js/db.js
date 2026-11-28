@@ -85,11 +85,12 @@ export async function createOrUpdateUser(firebaseUser) {
             dailyMissions:     createFreshDailyMissions(_formatLocalDate(new Date()))
         });
     } else {
-        // Subsequent logins — only update mutable profile fields
+        // Subsequent logins — preserve saved custom displayName in Firestore
+        const existing = snap.data();
         await updateDoc(ref, {
-            displayName: firebaseUser.displayName || snap.data().displayName,
-            email:       firebaseUser.email       || snap.data().email,
-            photoURL:    firebaseUser.photoURL    || snap.data().photoURL,
+            displayName: existing.displayName || firebaseUser.displayName || 'Space Traveller',
+            email:       firebaseUser.email       || existing.email,
+            photoURL:    firebaseUser.photoURL    || existing.photoURL,
             lastLoginAt: serverTimestamp()
         });
     }
@@ -343,6 +344,18 @@ export async function unlockAndEquipSkin(uid, skinId, cost) {
 
 export async function equipSkin(uid, skinId) {
     await updateDoc(userRef(uid), { selectedSkin: skinId });
+}
+
+// ── Update custom Gamer Tag / Display Name ────────────────────────────────────
+export async function updatePlayerDisplayName(uid, newName) {
+    await updateDoc(userRef(uid), { displayName: newName });
+    const lbSnap = await getDoc(leaderboardRef(uid));
+    if (lbSnap.exists()) {
+        await updateDoc(leaderboardRef(uid), {
+            displayName: newName,
+            updatedAt: serverTimestamp()
+        });
+    }
 }
 
 // ── Fetch recent game runs ────────────────────────────────────────────────────

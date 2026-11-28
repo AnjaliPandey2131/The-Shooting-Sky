@@ -5,7 +5,7 @@
    ------------------------------------------------------------- */
 
 import { signOutUser }                from './auth.js';
-import { loadUserProfile, fetchRecentRuns, fetchLeaderboard, syncLeaderboardEntry, saveSelectedWorld, unlockAndEquipSkin, equipSkin } from './db.js';
+import { loadUserProfile, fetchRecentRuns, fetchLeaderboard, syncLeaderboardEntry, saveSelectedWorld, unlockAndEquipSkin, equipSkin, updatePlayerDisplayName } from './db.js';
 import { toggleTheme, getTheme }      from './theme.js';
 import { sound }                      from './audio.js';
 import { WORLDS, isWorldUnlocked, getSavedWorldId, saveLocalWorldId } from './worlds.js';
@@ -85,7 +85,8 @@ const ICONS = {
     clock:       svg('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'),
     globe:       svg('<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>', 14),
     refresh:     svg('<path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/>', 14),
-    guide:       svg('<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>', 15)
+    guide:       svg('<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>', 15),
+    pencil:      svg('<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/>', 13)
 };
 
 // ── Build DOM ─────────────────────────────────────────────────────────────────
@@ -104,7 +105,20 @@ function _build() {
                 <div class="profile-section">
                     <img id="dash-avatar" class="profile-avatar" src="" alt="Profile" />
                     <div class="profile-info">
-                        <div id="dash-name"  class="profile-name">Loading…</div>
+                        <div class="profile-name-row">
+                            <div id="dash-name" class="profile-name">Loading…</div>
+                            <button id="dash-edit-name-btn" class="edit-name-btn" type="button" title="Edit Gamer Tag" aria-label="Edit Gamer Tag">
+                                ${ICONS.pencil}
+                            </button>
+                        </div>
+                        <div id="dash-name-editor" class="name-editor hidden">
+                            <input id="dash-name-input" class="name-editor-input" type="text" maxlength="18" placeholder="Gamer Tag (2-18 chars)" autocomplete="off" />
+                            <div class="name-editor-actions">
+                                <button id="dash-name-save" class="primary-btn name-save-btn" type="button">Save</button>
+                                <button id="dash-name-cancel" class="secondary-btn name-cancel-btn" type="button">Cancel</button>
+                            </div>
+                            <div id="dash-name-error" class="name-editor-error hidden"></div>
+                        </div>
                         <div id="dash-email" class="profile-email"></div>
                     </div>
                     <button id="dash-logout" class="logout-btn" title="Sign out">
@@ -351,6 +365,74 @@ function _bindDashEvents() {
     document.getElementById('dash-load-more')?.addEventListener('click', () => {
         _loadHistory(false);
     });
+
+    // Custom Gamer Tag inline editor
+    const editBtn  = document.getElementById('dash-edit-name-btn');
+    const editor   = document.getElementById('dash-name-editor');
+    const nameRow  = document.querySelector('.profile-name-row');
+    const inputEl  = document.getElementById('dash-name-input');
+    const saveBtn  = document.getElementById('dash-name-save');
+    const cancelBtn = document.getElementById('dash-name-cancel');
+    const errEl    = document.getElementById('dash-name-error');
+
+    const closeEditor = () => {
+        editor?.classList.add('hidden');
+        nameRow?.classList.remove('hidden');
+        errEl?.classList.add('hidden');
+    };
+
+    const openEditor = () => {
+        if (!editor || !inputEl) return;
+        const current = document.getElementById('dash-name')?.textContent?.trim() || '';
+        inputEl.value = current === 'Loading…' ? '' : current.slice(0, 18);
+        errEl?.classList.add('hidden');
+        nameRow?.classList.add('hidden');
+        editor.classList.remove('hidden');
+        inputEl.focus();
+        inputEl.select();
+    };
+
+    const submitName = async () => {
+        if (!inputEl || !_user) return;
+        const trimmed = inputEl.value.trim();
+        if (trimmed.length < 2 || trimmed.length > 18) {
+            if (errEl) {
+                errEl.textContent = 'Use 2–18 characters.';
+                errEl.classList.remove('hidden');
+            }
+            return;
+        }
+        if (!/^[a-zA-Z0-9 _.]+$/.test(trimmed)) {
+            if (errEl) {
+                errEl.textContent = 'Only letters, numbers, spaces, _ and . allowed.';
+                errEl.classList.remove('hidden');
+            }
+            return;
+        }
+        if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+        try {
+            await updatePlayerDisplayName(_user.uid, trimmed);
+            if (_cachedProfile) _cachedProfile.displayName = trimmed;
+            _set('dash-name', trimmed);
+            closeEditor();
+            _loadLeaderboard();
+        } catch (err) {
+            if (errEl) {
+                errEl.textContent = 'Could not save name. Try again.';
+                errEl.classList.remove('hidden');
+            }
+        } finally {
+            if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
+        }
+    };
+
+    editBtn?.addEventListener('click', openEditor);
+    cancelBtn?.addEventListener('click', closeEditor);
+    saveBtn?.addEventListener('click', submitName);
+    inputEl?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); submitName(); }
+        if (e.key === 'Escape') { e.preventDefault(); closeEditor(); }
+    });
 }
 
 // ── Skeleton / profile ────────────────────────────────────────────────────────
@@ -370,6 +452,7 @@ async function _loadAndRender() {
         if (!profile) return;
         _cachedProfile = profile;
 
+        _set('dash-name', profile.displayName || _user.displayName || 'Space Traveller');
         _set('dash-best-score',  profile.bestScore    > 0 ? profile.bestScore.toLocaleString() : '—');
         _set('dash-prev-score',  profile.previousScore > 0 ? profile.previousScore.toLocaleString() : '—');
         _set('dash-total-games', profile.totalGames   > 0 ? profile.totalGames : '—');
@@ -651,7 +734,10 @@ async function _loadLeaderboard() {
 
             const nameEl = document.createElement('div');
             nameEl.className = 'lb-name';
-            nameEl.textContent = entry.displayName || 'Space Traveller';
+            const nameText = document.createElement('span');
+            nameText.className = 'lb-name-text';
+            nameText.textContent = entry.displayName || 'Space Traveller';
+            nameEl.appendChild(nameText);
             if (isSelf) {
                 const badge = document.createElement('span');
                 badge.className = 'lb-you-badge';

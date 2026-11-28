@@ -3330,3 +3330,138 @@ html, body {
         padding: 8px 10px;
     }
 }
+
+
+/* ═════════════════════════════════════════════════════════════
+   CUSTOM GAMER TAG EDITOR & MOBILE LEADERBOARD BADGE FIX
+   ═════════════════════════════════════════════════════════════ */
+
+.profile-name-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.profile-name-row.hidden {
+    display: none;
+}
+
+@media (max-width: 860px) {
+    .profile-name-row {
+        justify-content: flex-start;
+    }
+}
+
+.edit-name-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.65);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.12s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.edit-name-btn:hover {
+    color: var(--primary-cyan);
+    border-color: var(--primary-cyan);
+    transform: translateY(-1px);
+}
+
+.edit-name-btn:active {
+    transform: scale(0.95);
+}
+
+[data-theme="light"] .edit-name-btn {
+    border-color: rgba(15, 23, 42, 0.15);
+    background: rgba(15, 23, 42, 0.04);
+    color: #475569;
+}
+
+[data-theme="light"] .edit-name-btn:hover {
+    color: #0284c7;
+    border-color: #0284c7;
+}
+
+.name-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    margin-bottom: 4px;
+}
+
+.name-editor.hidden {
+    display: none;
+}
+
+.name-editor-input {
+    width: 100%;
+    padding: 6px 9px;
+    border-radius: 7px;
+    border: 1px solid rgba(0, 240, 255, 0.4);
+    background: rgba(6, 10, 22, 0.85);
+    color: #ffffff;
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    outline: none;
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+[data-theme="light"] .name-editor-input {
+    background: #ffffff;
+    color: #0f172a;
+    border-color: #0284c7;
+}
+
+.name-editor-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.name-save-btn,
+.name-cancel-btn {
+    flex: 1;
+    padding: 5px 8px;
+    font-size: 0.72rem;
+    border-radius: 6px;
+}
+
+.name-editor-error {
+    font-size: 0.7rem;
+    color: #fb7185;
+    line-height: 1.25;
+}
+
+.name-editor-error.hidden {
+    display: none;
+}
+
+/* Mobile Leaderboard: truncate long name cleanly without clipping YOU badge */
+.lb-name {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    overflow: visible;
+}
+
+.lb-name-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lb-you-badge {
+    flex-shrink: 0;
+}
